@@ -23,9 +23,10 @@ chisel_verilog_directory(
         ":"+target_name,
     ],
     generator = ":"+target_name,
-    opts = [
-        "--hello=world",
-        "--",
+    app_opts = [
+        "--dataBits=3",
+    ],
+    firtool_opts = [
         "--default-layer-specialization=disable",
     ],
     tags = ["manual"],

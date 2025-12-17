@@ -14,15 +14,28 @@ class Counter(dataBits: Int) extends Module {
 }
 
 object EmitCounter extends App {
-  val (beforeFirstDash, afterFirstDash) = args.span(_ != "--")
-  val firtoolArgs = afterFirstDash.drop(1) ++ Array("--split-verilog")
+  // Split by first "--"
+  val (appArgs, rest1) = args.span(_ != "--")
+  val rest1Dropped = rest1.drop(1)
 
-  println(s"Args: ${beforeFirstDash.mkString(" ")}")
+  // Split by second "--"
+  val (chiselArgs, rest2) = rest1Dropped.span(_ != "--")
+  val firtoolArgs = rest2.drop(1)
+
+  // Parse app configs
+  val configs: Map[String, String] = appArgs.collect {
+    case arg if arg.startsWith("--") && arg.contains("=") =>
+      val Array(key, value) = arg.stripPrefix("--").split("=", 2)
+      key -> value
+  }.toMap
+
+  println(s"Configs: $configs")
+  println(s"Chisel Args: ${chiselArgs.mkString(" ")}")
   println(s"Firtool Args: ${firtoolArgs.mkString(" ")}")
 
   ChiselStage.emitSystemVerilogFile(
-    new Counter(3),
-    args = beforeFirstDash,
+    new Counter(configs.getOrElse("dataBits", "4").toInt),
+    args = chiselArgs,
     firtoolOpts = firtoolArgs
   )
 }
