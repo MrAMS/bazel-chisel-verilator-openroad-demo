@@ -2,6 +2,7 @@ load("@rules_cc//cc:defs.bzl", "cc_test")
 load("@rules_verilator//verilator:defs.bzl", "verilator_cc_library")
 
 target_name = "counter"
+
 module_top = "Counter"
 
 verilator_cc_library(
@@ -20,14 +21,14 @@ verilator_cc_library(
 cc_test(
     name = "counter-test",
     srcs = ["counter.cc"],
-    deps = [
-        ":"+target_name+"-cc-library",
-        "@googletest//:gtest",
-        "@googletest//:gtest_main",
-    ],
     # copts = select({
     #     "//rules/build_settings:enable_wave_tracing": ["-DWAVEON"],
     #     "//conditions:default": [],
     # }),
     visibility = ["//visibility:public"],
+    deps = [
+        ":" + target_name + "-cc-library",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
 )

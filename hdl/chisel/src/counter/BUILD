@@ -1,8 +1,9 @@
-load("@bazel-orfs//toolchains/scala:chisel.bzl", "chisel_binary", "chisel_library")
 load("@bazel-orfs//:verilog.bzl", "verilog_single_file_library")
+load("@bazel-orfs//toolchains/scala:chisel.bzl", "chisel_binary", "chisel_library")
 load("//:generate.bzl", "chisel_verilog_directory")
 
 target_name = "counter"
+
 emit_class = "counter.EmitCounter"
 
 chisel_binary(
@@ -18,32 +19,31 @@ chisel_binary(
 )
 
 chisel_verilog_directory(
-    name = target_name+"-generate-verilog-split-files",
-    data = [
-        ":"+target_name,
-    ],
-    generator = ":"+target_name,
+    name = target_name + "-generate-verilog-split-files",
     app_opts = [
         "--dataBits=3",
+    ],
+    data = [
+        ":" + target_name,
     ],
     firtool_opts = [
         "--default-layer-specialization=disable",
     ],
+    generator = ":" + target_name,
     tags = ["manual"],
     visibility = ["//visibility:public"],
 )
 
-
 verilog_single_file_library(
-    name = target_name+"-generate-verilog-single-file.sv",
-    srcs = [target_name+"-generate-verilog-split-files"],
+    name = target_name + "-generate-verilog-single-file.sv",
+    srcs = [target_name + "-generate-verilog-split-files"],
     tags = ["manual"],
     visibility = ["//visibility:public"],
 )
 
 # Support for Metals
 chisel_library(
-    name = target_name+"-library",
+    name = target_name + "-library",
     srcs = glob(["**/*.scala"]),
     tags = ["manual"],
     visibility = ["//visibility:public"],

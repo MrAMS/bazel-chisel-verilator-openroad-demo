@@ -21,15 +21,20 @@ def _chisel_verilog_impl(ctx, split):
         output = ctx.actions.declare_file(ctx.attr.name)
 
     args = ctx.actions.args()
+
     # Add application custom options (e.g., --dataBits=4)
     args.add_all([ctx.expand_location(opt, ctx.attr.data) for opt in ctx.attr.app_opts])
+
     # Add first -- separator
     args.add("--")
+
     # Add ChiselStage options (e.g., --target-dir)
     args.add("--target-dir", output.path)
     args.add_all([ctx.expand_location(opt, ctx.attr.data) for opt in ctx.attr.chisel_opts])
+
     # Add second -- separator
     args.add("--")
+
     # Add firtool options
     args.add_all([ctx.expand_location(opt, ctx.attr.data) for opt in ctx.attr.firtool_opts])
     args.add("-o", output.path)
@@ -85,14 +90,6 @@ def _chisel_verilog_impl(ctx, split):
 def chisel_verilog_attrs():
     """Common attributes for Chisel Verilog rules."""
     return {
-        "data": attr.label_list(
-            allow_files = True,
-        ),
-        "generator": attr.label(
-            cfg = "exec",
-            executable = True,
-            mandatory = True,
-        ),
         "app_opts": attr.string_list(
             default = [],
             doc = "Application-specific options (e.g., --dataBits=4)",
@@ -101,9 +98,17 @@ def chisel_verilog_attrs():
             default = [],
             doc = "Additional ChiselStage command line options (e.g., --split-verilog)",
         ),
+        "data": attr.label_list(
+            allow_files = True,
+        ),
         "firtool_opts": attr.string_list(
             default = [],
             doc = "Firtool command line options (e.g., --default-layer-specialization=disable)",
+        ),
+        "generator": attr.label(
+            cfg = "exec",
+            executable = True,
+            mandatory = True,
         ),
     }
 

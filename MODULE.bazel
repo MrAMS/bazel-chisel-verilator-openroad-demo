@@ -8,7 +8,6 @@ module(
 # This significantly speeds up BSP imports and builds
 # See: https://blog.aspect.build/never-compile-protoc-again
 bazel_dep(name = "toolchains_protoc", version = "0.6.0")
-
 bazel_dep(name = "rules_jvm_external", version = "6.7")
 bazel_dep(name = "rules_java", version = "8.14.0")
 bazel_dep(name = "rules_cc", version = "0.2.8")
@@ -108,9 +107,9 @@ MAVEN_SHORT_DEPS = {
     "io.circe:circe-generic-extras": CIRCE_VERSION,
     "io.circe:circe-parser": CIRCE_VERSION,
     "io.circe:circe-yaml": "1.15.0",
-    "org.json4s:json4s-native": "4.0.7",
     "org.chipsalliance:chisel": CHISEL_VERSION,
     "org.chipsalliance:firtool-resolver": "2.0.1",
+    "org.json4s:json4s-native": "4.0.7",
     "org.scalatest:scalatest": "3.2.19",
 }
 
