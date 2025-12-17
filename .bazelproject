@@ -1,5 +1,5 @@
 targets:
-    @//...:all
+    //hdl/chisel:bsp
 
 allow_manual_targets_sync: false
 

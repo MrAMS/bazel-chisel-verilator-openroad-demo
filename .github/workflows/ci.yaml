@@ -123,7 +123,7 @@ jobs:
         run: bazel build //eda:counter_results
 
   bloop:
-    name: Check Bloop
+    name: Check Bazel BSP
     runs-on: ubuntu-22.04
     env:
       DEBIAN_FRONTEND: "noninteractive"
@@ -149,6 +149,6 @@ jobs:
           disk-cache: ${{ github.workflow }}-${{ github.job }}
           repository-cache: true
 
-      - name: Run Bloop
+      - name: Test Bazel BSP
         run: |
-          bazel run //hdl/chisel:bloop
+          bazel build //hdl/chisel:bsp

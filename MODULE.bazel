@@ -9,7 +9,24 @@ bazel_dep(name = "rules_java", version = "8.14.0")
 bazel_dep(name = "rules_cc", version = "0.2.8")
 bazel_dep(name = "rules_verilator", version = "0.1.0")
 bazel_dep(name = "verilator", version = "5.036.bcr.3")
-bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
+bazel_dep(name = "googletest", version = "1.17.0")
+bazel_dep(name = "rules_scala", version = "7.1.5")
+
+# Configure Scala version to match bazel-orfs
+scala_config = use_extension("@rules_scala//scala/extensions:config.bzl", "scala_config")
+scala_config.settings(scala_version = "2.13.17")
+use_repo(scala_config, "rules_scala_config")
+
+scala_deps = use_extension("@rules_scala//scala/extensions:deps.bzl", "scala_deps")
+scala_deps.scala()
+scala_deps.scalatest()
+use_repo(
+    scala_deps,
+    "io_bazel_rules_scala_scala_compiler",
+    "io_bazel_rules_scala_scala_library",
+    "io_bazel_rules_scala_scala_reflect",
+    "rules_scala_toolchains",
+)
 
 ## Fix the compiler version and avoid any local compiler
 bazel_dep(name = "toolchains_llvm", version = "1.4.0")
@@ -27,28 +44,27 @@ register_toolchains(
 bazel_dep(
     name = "rules_python",
     version = "1.6.3",
-    repo_name = "my_rules_python",
 )
 
-python = use_extension("@my_rules_python//python/extensions:python.bzl", "python")
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(
     ignore_root_user_error = True,
     python_version = "3.13",
 )
 
-pip = use_extension("@my_rules_python//python/extensions:pip.bzl", "pip")
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
 pip.parse(
-    hub_name = "my-pip",
+    hub_name = "pip",
     python_version = "3.13",
     requirements_lock = "//:requirements_lock.txt",
 )
-use_repo(pip, "my-pip")
+use_repo(pip, "pip")
 
 bazel_dep(name = "bazel-orfs")
 git_override(
     module_name = "bazel-orfs",
-    commit = "cd5de3325bddce9043c3741dd3eeb833e7a5e2eb",
-    remote = "https://github.com/The-OpenROAD-Project/bazel-orfs.git",
+    commit = "6019831322d11fbc2df63fe3da3825c051593e3b",
+    remote = "https://github.com/MrAMS/bazel-orfs.git",
 )
 
 orfs = use_extension("@bazel-orfs//:extension.bzl", "orfs_repositories")

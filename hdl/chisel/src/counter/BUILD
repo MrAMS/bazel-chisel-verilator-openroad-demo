@@ -1,5 +1,4 @@
 load("@bazel-orfs//toolchains/scala:chisel.bzl", "chisel_binary", "chisel_library")
-load("@bazel-orfs//toolchains/scala:scala_bloop.bzl", "scala_bloop")
 load("@bazel-orfs//:verilog.bzl", "verilog_single_file_library")
 load("//:generate.bzl", "chisel_verilog_directory")
 
@@ -25,6 +24,7 @@ chisel_verilog_directory(
     ],
     generator = ":"+target_name,
     opts = [
+        "--hello=world",
         "--",
         "--default-layer-specialization=disable",
     ],
@@ -40,22 +40,10 @@ verilog_single_file_library(
     visibility = ["//visibility:public"],
 )
 
-# Support for metals
-filegroup(
-    name = "chiselfiles",
+# Support for Metals
+chisel_library(
+    name = target_name+"-library",
     srcs = glob(["**/*.scala"]),
     tags = ["manual"],
-    visibility = ["//visibility:private"],
-)
-
-chisel_library(
-    name = "blooplib-"+target_name,
-    srcs = [
-        ":chiselfiles",
-    ],
-    tags = ["manual"],
-    deps = [
-        "@maven//:org_scalatest_scalatest_2_13",
-    ],
     visibility = ["//visibility:public"],
 )
