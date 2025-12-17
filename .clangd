@@ -1,0 +1,14 @@
+CompileFlags:
+  # Replace wrapper.sh with the actual clang binary
+  Compiler: external/toolchains_llvm++llvm+llvm_toolchain_llvm/bin/clang
+
+  # Remove flags that clangd doesn't need
+  Remove:
+    - "-MD"
+    - "-MF"
+    - "-frandom-seed*"
+    - "-no-canonical-prefixes"
+    - "-Wno-builtin-macro-redefined"
+    - '"-D__DATE__=*"'
+    - '"-D__TIMESTAMP__=*"'
+    - '"-D__TIME__=*"'

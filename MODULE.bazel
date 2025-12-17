@@ -1,0 +1,126 @@
+"""A demo of Chisel+Verilator+OpenROAD workflow"""
+
+module(
+    name = "chisel-verilator-openroad-demo",
+)
+
+bazel_dep(name = "rules_jvm_external", version = "6.7")
+bazel_dep(name = "rules_java", version = "8.14.0")
+bazel_dep(name = "rules_cc", version = "0.2.8")
+bazel_dep(name = "rules_verilator", version = "0.1.0")
+bazel_dep(name = "verilator", version = "5.036.bcr.3")
+bazel_dep(name = "googletest", version = "1.17.0.bcr.2")
+
+## Fix the compiler version and avoid any local compiler
+bazel_dep(name = "toolchains_llvm", version = "1.4.0")
+
+llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm")
+llvm.toolchain(
+    llvm_version = "20.1.0",
+)
+use_repo(llvm, "llvm_toolchain")
+
+register_toolchains(
+    "@llvm_toolchain//:all",
+)
+
+bazel_dep(
+    name = "rules_python",
+    version = "1.6.3",
+    repo_name = "my_rules_python",
+)
+
+python = use_extension("@my_rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    ignore_root_user_error = True,
+    python_version = "3.13",
+)
+
+pip = use_extension("@my_rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    hub_name = "my-pip",
+    python_version = "3.13",
+    requirements_lock = "//:requirements_lock.txt",
+)
+use_repo(pip, "my-pip")
+
+bazel_dep(name = "bazel-orfs")
+git_override(
+    module_name = "bazel-orfs",
+    commit = "cd5de3325bddce9043c3741dd3eeb833e7a5e2eb",
+    remote = "https://github.com/The-OpenROAD-Project/bazel-orfs.git",
+)
+
+orfs = use_extension("@bazel-orfs//:extension.bzl", "orfs_repositories")
+
+# To bump version, run: bazelisk run @bazel-orfs//:bump
+orfs.default(
+    # Official image https://hub.docker.com/r/openroad/orfs/tags
+    image = "docker.io/openroad/orfs:v3.0-4350-g4e47ad013",
+    sha256 = "2e09979b7ab7f8e797b50ad8baec1e26d66205ea5bd6ec1b4ddfc7b4e924eb2b",
+)
+use_repo(orfs, "com_github_nixos_patchelf_download")
+use_repo(orfs, "docker_orfs")
+
+SCALA_VERSION = "2.13.17"
+
+SCALA_VERSION_SHORT = SCALA_VERSION.rpartition(".")[0]
+
+CIRCE_VERSION = "0.14.4"
+
+CHISEL_VERSION = "7.2.0"
+
+MAVEN_DEPS = {
+    "org.apache.commons:commons-text": "1.12.0",
+    "org.scala-lang:scala-compiler": SCALA_VERSION,
+    "org.scala-lang:scala-library": SCALA_VERSION,
+    "org.scala-lang:scala-reflect": SCALA_VERSION,
+}
+
+MAVEN_SHORT_DEPS = {
+    "com.github.scopt:scopt": "4.1.0",
+    "com.lihaoyi:os-lib": "0.10.0",
+    "com.lihaoyi:ujson": "4.1.0",
+    "com.lihaoyi:upickle": "4.1.0",
+    "io.circe:circe-core": CIRCE_VERSION,
+    "io.circe:circe-generic": CIRCE_VERSION,
+    "io.circe:circe-generic-extras": CIRCE_VERSION,
+    "io.circe:circe-parser": CIRCE_VERSION,
+    "io.circe:circe-yaml": "1.15.0",
+    "org.json4s:json4s-native": "4.0.7",
+    "org.chipsalliance:chisel": CHISEL_VERSION,
+    "org.chipsalliance:firtool-resolver": "2.0.1",
+    "org.scalatest:scalatest": "3.2.19",
+}
+
+MAVEN_LONG_DEPS = {
+    "org.chipsalliance:chisel-plugin": CHISEL_VERSION,
+    "org.scalameta:semanticdb-scalac": "4.14.1",
+}
+
+maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
+maven.install(
+    name = "maven",
+    artifacts = ["{}_{}:{}".format(dep, SCALA_VERSION_SHORT, version) for (dep, version) in MAVEN_SHORT_DEPS.items()] +
+                ["{}_{}:{}".format(dep, SCALA_VERSION, version) for (dep, version) in MAVEN_LONG_DEPS.items()] +
+                ["{}:{}".format(dep, version) for (dep, version) in MAVEN_DEPS.items()],
+    fetch_sources = True,
+    lock_file = "//:maven_install.json",  # REPIN=1 bazel run @maven//:pin
+    repositories = [
+        "https://repo1.maven.org/maven2",  # fastest mirror, last I tried
+        "https://s01.oss.sonatype.org/content/repositories/releases",
+        "https://s01.oss.sonatype.org/content/repositories/snapshots",
+    ],
+)
+use_repo(maven, "maven")
+
+# Hedron's Compile Commands Extractor for Bazel
+bazel_dep(name = "hedron_compile_commands", dev_dependency = True)
+git_override(
+    module_name = "hedron_compile_commands",
+    commit = "abb61a688167623088f8768cc9264798df6a9d10",
+    remote = "https://github.com/hedronvision/bazel-compile-commands-extractor.git",
+)
+
+# Buildifier Prebuilt
+bazel_dep(name = "buildifier_prebuilt", version = "8.2.1", dev_dependency = True)

@@ -1,0 +1,154 @@
+name: chisel-verilator-openroad-demo
+on:
+  pull_request:
+  push:
+    paths-ignore:
+      - "**.md"
+      - "LICENSE"
+
+jobs:
+  lint:
+    name: Lint Bazel files
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bazel
+        uses: bazel-contrib/setup-bazel@0.15.0
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}-${{ github.job }}
+          repository-cache: true
+
+      - name: Lint Bazel files
+        run: bazel run @buildifier_prebuilt//:buildifier -- -lint=warn -mode=check -warnings=all -r .
+
+      - name: Check MODULE.bazel.lock
+        run: bazel mod tidy && git diff --exit-code
+
+  generate:
+    name: Generate Verilog
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          docker-images: true
+          swap-storage: false
+          large-packages: false # speedup
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bazel
+        uses: bazel-contrib/setup-bazel@0.15.0
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}-${{ github.job }}
+          repository-cache: true
+
+      - name: Emit Split Verilog Files
+        run: bazel build //hdl/chisel/src/counter:counter-generate-verilog-split-files
+
+      - name: Emit Single Verilog File
+        run: bazel build //hdl/chisel/src/counter:counter-generate-verilog-single-file.sv
+
+  simulate:
+    name: Run Simulations
+    needs: generate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          docker-images: true
+          swap-storage: false
+          large-packages: false # speedup
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bazel
+        uses: bazel-contrib/setup-bazel@0.15.0
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}-${{ github.job }}
+          repository-cache: true
+
+      - name: Run Simulations
+        run: bazel run //cpp/verilator_tests:counter-test
+
+      # - name: Debug Simulations
+      #   run: make debug
+
+      - name: Run Compile Commands Extractor
+        run: bazel run :refresh_compile_commands
+
+  eda:
+    name: EDA Flow
+    needs: generate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          docker-images: true
+          swap-storage: false
+          large-packages: false # speedup
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bazel
+        uses: bazel-contrib/setup-bazel@0.15.0
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}-eda
+          repository-cache: true
+
+      - name: EDA Flow
+        run: bazel build //eda:counter_results
+
+  bloop:
+    name: Check Bloop
+    runs-on: ubuntu-22.04
+    env:
+      DEBIAN_FRONTEND: "noninteractive"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          docker-images: true
+          swap-storage: false
+          large-packages: false # speedup
+
+      - name: Setup Bazel
+        uses: bazel-contrib/setup-bazel@0.15.0
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}-${{ github.job }}
+          repository-cache: true
+
+      - name: Run Bloop
+        run: |
+          bazel run //hdl/chisel:bloop

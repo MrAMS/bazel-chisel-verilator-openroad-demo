@@ -1,0 +1,7 @@
+# Enable repository cache to speed up external dependency downloads
+build --repository_cache=~/.cache/bazel/repository_cache
+
+# For 3rd party code: Disable warnings entirely.
+# They are not actionable and just create noise.
+build --per_file_copt=external/.*@-w
+build --host_per_file_copt=external/.*@-w
