@@ -1,4 +1,4 @@
-load("@my_rules_python//python:pip.bzl", "compile_pip_requirements")
+load("@rules_python//python:pip.bzl", "compile_pip_requirements")
 load("@hedron_compile_commands//:refresh_compile_commands.bzl", "refresh_compile_commands")
 
 # python pip

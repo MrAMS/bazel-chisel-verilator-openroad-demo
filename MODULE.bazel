@@ -4,6 +4,11 @@ module(
     name = "chisel-verilator-openroad-demo",
 )
 
+# Use pre-built protoc to avoid compiling it from source every time
+# This significantly speeds up BSP imports and builds
+# See: https://blog.aspect.build/never-compile-protoc-again
+bazel_dep(name = "toolchains_protoc", version = "0.6.0")
+
 bazel_dep(name = "rules_jvm_external", version = "6.7")
 bazel_dep(name = "rules_java", version = "8.14.0")
 bazel_dep(name = "rules_cc", version = "0.2.8")
@@ -140,3 +145,11 @@ git_override(
 
 # Buildifier Prebuilt
 bazel_dep(name = "buildifier_prebuilt", version = "8.2.1", dev_dependency = True)
+
+# Register pre-built protoc toolchain to avoid compiling from source
+# IMPORTANT: This must be configured AFTER all other dependencies
+protoc = use_extension("@toolchains_protoc//protoc:extensions.bzl", "protoc")
+protoc.toolchain()
+use_repo(protoc, "toolchains_protoc_hub")
+
+register_toolchains("@toolchains_protoc_hub//:all")
