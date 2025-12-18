@@ -33,6 +33,9 @@ use_repo(
     "rules_scala_toolchains",
 )
 
+# Register custom Scala toolchain with SemanticDB enabled
+register_toolchains("//:semanticdb_toolchain")
+
 ## Fix the compiler version and avoid any local compiler
 bazel_dep(name = "toolchains_llvm", version = "1.4.0")
 
