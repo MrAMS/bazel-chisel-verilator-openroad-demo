@@ -1,10 +1,14 @@
+directories:
+    hdl/chisel
+
 targets:
-    //hdl/chisel:bsp
+    //hdl/chisel/...
 
 build_flags:
+    --build_tag_filters=-manual
     --disk_cache=~/.cache/bazel-disk-cache
     --jobs=auto
-    ----remote_cache_compression
+    --remote_cache_compression
 
 sync_flags:
     --disk_cache=~/.cache/bazel-disk-cache

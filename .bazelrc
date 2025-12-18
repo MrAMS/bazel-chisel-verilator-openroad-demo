@@ -27,4 +27,4 @@ build --host_per_file_copt=external/.*@-w
 
 
 # alias
-build:debug --//cpp/verilator_tests:wave_tracing=true
+build:debug --//rules:wave_tracing=true

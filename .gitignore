@@ -2,7 +2,8 @@
 .metals/
 .bloop/
 .bsp/
-.bazelbsp
+.bazelbsp/
+external/
 
 # C/C++
 compile_commands.json
@@ -14,6 +15,7 @@ bazel-*
 # IDE
 .zed/
 .vscode/
+.idea/
 
 # Gtkwave
 gtkwave.sav
