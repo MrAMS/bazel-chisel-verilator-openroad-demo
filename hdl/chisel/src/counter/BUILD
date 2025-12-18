@@ -11,11 +11,6 @@ chisel_binary(
     srcs = glob(["**/*.scala"]),
     main_class = emit_class,
     scalacopts = ["-Ytasty-reader"],
-    deps = [
-        "@maven//:com_github_scopt_scopt_2_13",
-        "@maven//:io_circe_circe_yaml_2_13",
-        "@maven//:io_circe_circe_yaml_common_2_13",
-    ],
 )
 
 chisel_verilog_directory(

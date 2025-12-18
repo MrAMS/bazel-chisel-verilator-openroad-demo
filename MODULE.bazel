@@ -87,8 +87,6 @@ SCALA_VERSION = "2.13.17"
 
 SCALA_VERSION_SHORT = SCALA_VERSION.rpartition(".")[0]
 
-CIRCE_VERSION = "0.14.4"
-
 CHISEL_VERSION = "7.2.0"
 
 MAVEN_DEPS = {
@@ -103,11 +101,6 @@ MAVEN_SHORT_DEPS = {
     "com.lihaoyi:os-lib": "0.10.0",
     "com.lihaoyi:ujson": "4.1.0",
     "com.lihaoyi:upickle": "4.1.0",
-    "io.circe:circe-core": CIRCE_VERSION,
-    "io.circe:circe-generic": CIRCE_VERSION,
-    "io.circe:circe-generic-extras": CIRCE_VERSION,
-    "io.circe:circe-parser": CIRCE_VERSION,
-    "io.circe:circe-yaml": "1.15.0",
     "org.chipsalliance:chisel": CHISEL_VERSION,
     "org.chipsalliance:firtool-resolver": "2.0.1",
     "org.json4s:json4s-native": "4.0.7",
