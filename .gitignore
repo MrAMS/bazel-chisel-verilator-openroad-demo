@@ -3,13 +3,20 @@
 .bloop/
 .bsp/
 .bazelbsp
+
 # C/C++
 compile_commands.json
 .cache/
+
 # bazel build
 bazel-*
+
 # IDE
 .zed/
 .vscode/
+
+# Gtkwave
+gtkwave.sav
+*.vcd
 
 # note: MODULE.bazel.lock and maven_install.json should not be ignored

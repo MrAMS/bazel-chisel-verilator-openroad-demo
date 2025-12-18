@@ -4,7 +4,7 @@ targets:
 build_flags:
     --disk_cache=~/.cache/bazel-disk-cache
     --jobs=auto
-    --experimental_remote_cache_compression
+    ----remote_cache_compression
 
 sync_flags:
     --disk_cache=~/.cache/bazel-disk-cache

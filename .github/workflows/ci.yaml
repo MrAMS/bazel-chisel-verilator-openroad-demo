@@ -90,8 +90,8 @@ jobs:
       - name: Run Simulations
         run: bazel run //cpp/verilator_tests:counter-test
 
-      # - name: Debug Simulations
-      #   run: make debug
+      - name: Debug Simulations
+        run: bazel run //cpp/verilator_tests:counter-test --config=debug
 
       - name: Run Compile Commands Extractor
         run: bazel run :refresh_compile_commands

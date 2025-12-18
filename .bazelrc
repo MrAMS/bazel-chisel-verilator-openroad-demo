@@ -16,10 +16,15 @@ cquery --disk_cache=~/.cache/bazel-disk-cache
 sync --disk_cache=~/.cache/bazel-disk-cache
 
 # Optimize for incremental builds
-build --experimental_remote_cache_compression
+build --remote_cache_compression
 build --experimental_reuse_sandbox_directories
 
 # For 3rd party code: Disable warnings entirely.
 # They are not actionable and just create noise.
 build --per_file_copt=external/.*@-w
 build --host_per_file_copt=external/.*@-w
+
+
+
+# alias
+build:debug --//cpp/verilator_tests:wave_tracing=true
