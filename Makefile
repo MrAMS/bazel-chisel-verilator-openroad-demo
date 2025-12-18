@@ -1,5 +1,5 @@
 gen:
-	bazel build //hdl/chisel/src/checker:checker-checker-generate-verilog-split-files
+	bazel build //hdl/chisel/src/checker:checker-generate-verilog-split-files
 
 sim:
 	bazel run //cpp/verilator_tests:counter-test

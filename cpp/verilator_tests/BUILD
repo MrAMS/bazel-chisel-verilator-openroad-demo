@@ -11,7 +11,7 @@ verilator_cc_library(
         "-Os",
         "-Wno-all",
     ],
-    module = "//hdl/chisel/src/{name}:{name}-{name}-generate-verilog-split-files".format(name = target_name),
+    module = "//hdl/chisel/src/{name}:{name}-generate-verilog-split-files".format(name = target_name),
     module_top = module_top,
     tags = ["manual"],
     trace = True,

@@ -54,16 +54,16 @@ jobs:
 
       - name: Emit Split Verilog Files
         run: |
-          bazel build //hdl/chisel/src/counter:counter-counter-generate-verilog-split-files
-          bazel build //hdl/chisel/src/checker:checker-checker-generate-verilog-split-files
+          bazel build //hdl/chisel/src/counter:counter-generate-verilog-split-files
+          bazel build //hdl/chisel/src/checker:checker-generate-verilog-split-files
 
       - name: Emit Single Verilog File
         run: |
-          bazel build //hdl/chisel/src/counter:counter-counter-generate-verilog-single-file.sv
-          bazel build //hdl/chisel/src/checker:checker-checker-generate-verilog-single-file.sv
+          bazel build //hdl/chisel/src/counter:counter-generate-verilog-single-file.sv
+          bazel build //hdl/chisel/src/checker:checker-generate-verilog-single-file.sv
           # check the output
-          cat bazel-bin/hdl/chisel/src/counter/counter-counter-generate-verilog-single-file.sv
-          cat bazel-bin/hdl/chisel/src/checker/checker-checker-generate-verilog-single-file.sv
+          cat bazel-bin/hdl/chisel/src/counter/counter-generate-verilog-single-file.sv
+          cat bazel-bin/hdl/chisel/src/checker/checker-generate-verilog-single-file.sv
 
   simulate:
     name: Run Simulations

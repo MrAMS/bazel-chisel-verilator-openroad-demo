@@ -3,8 +3,7 @@ load("@bazel-orfs//toolchains/scala:chisel.bzl", "chisel_binary", "chisel_librar
 load("//rules:generate.bzl", "chisel_verilog_directory")
 
 
-def gen_rtl_target(package_name, name, emit_class, srcs, deps=[], app_opts=[]):
-    target_name = package_name+"-"+name
+def gen_rtl_target(target_name, emit_class, srcs, deps=[], app_opts=[]):
 
     # BazelApp handle the bazel args
     final_deps = deps + ["//hdl/chisel/src/bazelapp:BazelApp-lib"]

@@ -37,7 +37,7 @@ orfs_flow(
         "SDC_FILE": [":constraints.sdc"],
     },
     top = top_module,
-    verilog_files = ["//hdl/chisel/src/{name}:{name}-{name}-generate-verilog-single-file.sv".format(name = target_name)],
+    verilog_files = ["//hdl/chisel/src/{name}:{name}-generate-verilog-single-file.sv".format(name = target_name)],
 )
 
 orfs_run(
