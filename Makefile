@@ -11,6 +11,10 @@ debug:
 eda:
 	bazel build //eda:counter_results
 
+eda-gui:
+	rm -rf /tmp/route
+	bazel run //eda:counter_route /tmp/route gui_route
+
 clangd: sim
 	bazel run :refresh_compile_commands
 
