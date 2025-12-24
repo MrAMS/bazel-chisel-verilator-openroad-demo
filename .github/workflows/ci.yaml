@@ -56,6 +56,7 @@ jobs:
         run: |
           bazel build //hdl/chisel/src/counter:counter-generate-verilog-split-files
           bazel build //hdl/chisel/src/checker:checker-generate-verilog-split-files
+          bazel build //hdl/chisel/src/SimdDotProduct:SimdDotProduct-generate-verilog-split-files --//rules:chisel_app_opts="--nLanes=8 --inputWidth=8"
 
       - name: Emit Single Verilog File
         run: |
@@ -127,7 +128,7 @@ jobs:
           repository-cache: true
 
       - name: EDA Flow
-        run: bazel build //eda:counter_results
+        run: bazel build //eda/counter:counter_results
 
   BSP:
     name: Check Bazel BSP

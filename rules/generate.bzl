@@ -6,6 +6,7 @@ This module provides rules for generating SystemVerilog from Chisel:
 """
 
 load("@rules_verilator//verilog:providers.bzl", "make_dag_entry", "make_verilog_info")
+load("//rules:settings.bzl", "BuildSettingInfo")
 
 def _chisel_verilog_impl(ctx):
     """Common implementation for Chisel Verilog generation.
@@ -19,6 +20,13 @@ def _chisel_verilog_impl(ctx):
 
     # Add application custom options (e.g., --dataBits=4)
     args.add_all([ctx.expand_location(opt, ctx.attr.data) for opt in ctx.attr.app_opts])
+
+    if hasattr(ctx.attr, "_chisel_app_opts"):
+        raw_cli_opts = ctx.attr._chisel_app_opts[BuildSettingInfo].value
+        if raw_cli_opts:
+            cli_args_list = raw_cli_opts.split(" ")
+            cli_args_list = [a for a in cli_args_list if a]
+            args.add_all(cli_args_list)
 
     # Add first -- separator
     args.add("--")
@@ -101,6 +109,9 @@ def chisel_verilog_attrs():
 
 chisel_verilog_directory = rule(
     implementation = lambda ctx: _chisel_verilog_impl(ctx),
-    attrs = chisel_verilog_attrs(),
+    attrs = dict(
+        chisel_verilog_attrs(),
+        _chisel_app_opts = attr.label(default = "//rules:chisel_app_opts"),
+    ),
     doc = "Generates split SystemVerilog files from Chisel in a directory.",
 )
