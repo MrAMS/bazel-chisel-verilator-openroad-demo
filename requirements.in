@@ -1,1 +1,5 @@
 -i https://pypi.tuna.tsinghua.edu.cn/simple
+optuna>=3.0.0
+matplotlib>=3.5.0
+numpy>=1.21.0
+plotly>=5.0.0

@@ -744,7 +744,7 @@
     "@@bazel-orfs+//:extension.bzl%orfs_repositories": {
       "general": {
         "bzlTransitiveDigest": "mXT67CG7L5OLVmAL21N/b1fUYtLkKfGcDS9/BHvSBuY=",
-        "usagesDigest": "bTEC8BOULAFW5WsOYVw1/34iZEw6w+gKL52POsCWZeA=",
+        "usagesDigest": "KiJ3tMYJpQcl7RFdMYEUbpyCZKn30YBymaJgceMNhPU=",
         "recordedFileInputs": {},
         "recordedDirentsInputs": {},
         "envVariables": {},

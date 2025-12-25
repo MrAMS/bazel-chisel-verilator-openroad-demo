@@ -21,4 +21,7 @@ bazel-*
 gtkwave.sav
 *.vcd
 
+# AI
+.claude/
+
 # note: MODULE.bazel.lock and maven_install.json should not be ignored

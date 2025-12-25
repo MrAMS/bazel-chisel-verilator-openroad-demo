@@ -71,8 +71,8 @@ use_repo(pip, "pip")
 bazel_dep(name = "bazel-orfs")
 git_override(
     module_name = "bazel-orfs",
-    commit = "1e862b169d97dc0fec5db106559640886e7fd7d0",
-    remote = "https://github.com/The-OpenROAD-Project/bazel-orfs.git",
+    commit = "f2d8e572e1b90f7720aa0c50aeeebe105cc3419a",
+    remote = "https://github.com/MrAMS/bazel-orfs.git",
 )
 
 orfs = use_extension("@bazel-orfs//:extension.bzl", "orfs_repositories")
