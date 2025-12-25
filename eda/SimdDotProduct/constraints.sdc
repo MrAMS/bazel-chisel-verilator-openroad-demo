@@ -1,16 +1,21 @@
 # SimdDotProduct Clock Constraints
-# Supports parameterized clock period via CLOCK_PERIOD environment variable
+# Supports parameterized clock period via environment variables
+# Priority: ABC_CLOCK_PERIOD_IN_PS > CLOCK_PERIOD > default
 
 set clk_name clock
 set clk_port_name clock
 
-# Read clock period from CLOCK_PERIOD environment variable (in picoseconds)
-# Can be overridden via: bazel build --define=CLOCK_PERIOD=<value_in_ps> ...
-if {[info exists env(CLOCK_PERIOD)]} {
+# Read clock period (in picoseconds) with fallback priority:
+# 1. ABC_CLOCK_PERIOD_IN_PS (ORFS standard for synthesis timing)
+# 2. CLOCK_PERIOD (legacy/custom variable)
+# 3. Default: 10000ps = 10ns = 100MHz
+if {[info exists env(ABC_CLOCK_PERIOD_IN_PS)]} {
+    set clk_period $env(ABC_CLOCK_PERIOD_IN_PS)
+    puts "Using ABC_CLOCK_PERIOD_IN_PS from environment: $clk_period ps ([expr {$clk_period / 1000.0}] ns)"
+} elseif {[info exists env(CLOCK_PERIOD)]} {
     set clk_period $env(CLOCK_PERIOD)
     puts "Using CLOCK_PERIOD from environment: $clk_period ps ([expr {$clk_period / 1000.0}] ns)"
 } else {
-    # Default: 10000ps = 10ns = 100MHz
     set clk_period 10000
     puts "Using default clock period: $clk_period ps (10 ns, 100 MHz)"
 }

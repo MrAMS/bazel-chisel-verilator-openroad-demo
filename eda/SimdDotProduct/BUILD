@@ -18,12 +18,11 @@ orfs_flow(
         "CORE_UTILIZATION": "50",
         "PLACE_DENSITY": "0.20",
 
-        # Clock period controlled via --define=CLOCK_PERIOD=<value_in_ps>
-        # Example: bazel build --define=CLOCK_PERIOD=20000 ...
-        # Default (from constraints.sdc): 10000ps = 10ns = 100MHz
-
-        # Standard configuration
-        "SETUP_SLACK_MARGIN": "0",
+        # Clock period controlled via --define=ABC_CLOCK_PERIOD_IN_PS=<value_in_ps>
+        # This is the official ORFS variable for synthesis and PnR clock period
+        # Example: bazel build --define=ABC_CLOCK_PERIOD_IN_PS=5000 ...
+        # Default (from constraints.sdc if not set): 10000ps = 10ns = 100MHz
+        # This controls clock frequency throughout synthesis, CTS, and timing repair
 
         # Enable timing-driven optimization
         "GPL_TIMING_DRIVEN": "1",

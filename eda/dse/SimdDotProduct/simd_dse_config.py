@@ -28,12 +28,12 @@ N_LANES_MIN = 4
 N_LANES_MAX = 128
 N_LANES_CHOICES = [4, 8, 16, 32, 64, 128]  # Explicit choices for faster exploration
 
-# Physical constraint: target clock period in nanoseconds
+# Physical constraint: ABC clock period in picoseconds
 # Determines "how hard we push the accelerator"
 # Tighter constraints -> larger gates -> more area
 # Looser constraints -> smaller gates -> less area
-TARGET_CLOCK_MIN_NS = 0.7  # ~700 MHz (aggressive for 7nm)
-TARGET_CLOCK_MAX_NS = 1.43  # ~300 MHz (conservative for 7nm)
+ABC_CLOCK_MIN_PS = 700   # 700 ps = ~1.43 GHz (aggressive)
+ABC_CLOCK_MAX_PS = 10000  # 10000 ps = 100 MHz (conservative)
 
 # Fixed design parameters
 INPUT_WIDTH = 8  # 8-bit inputs
@@ -57,17 +57,17 @@ def suggest_params(trial: optuna.Trial) -> Dict[str, Any]:
     # Suggest n_lanes from predefined choices
     n_lanes = trial.suggest_categorical("n_lanes", N_LANES_CHOICES)
 
-    # Suggest target clock period
-    target_clock_ns = trial.suggest_float(
-        "target_clock_ns",
-        TARGET_CLOCK_MIN_NS,
-        TARGET_CLOCK_MAX_NS,
+    # Suggest ABC clock period in picoseconds
+    abc_clock_ps = trial.suggest_int(
+        "abc_clock_ps",
+        ABC_CLOCK_MIN_PS,
+        ABC_CLOCK_MAX_PS,
         log=True,  # Use log scale for clock period
     )
 
     return {
         "n_lanes": n_lanes,
-        "target_clock_ns": target_clock_ns,
+        "abc_clock_ps": abc_clock_ps,
         "input_width": INPUT_WIDTH,
         "output_width": OUTPUT_WIDTH,
     }
@@ -105,12 +105,9 @@ def get_bazel_opts(params: Dict[str, Any]) -> List[str]:
         f"--outputWidth={params['output_width']}"
     )
 
-    # Convert clock period from ns to ps for OpenROAD
-    clock_period_ps = int(params["target_clock_ns"] * 1000)
-
     return [
         f"--//rules:chisel_app_opts={chisel_opts}",
-        f"--define=CLOCK_PERIOD={clock_period_ps}",
+        f"--define=ABC_CLOCK_PERIOD_IN_PS={params['abc_clock_ps']}",
     ]
 
 
@@ -203,7 +200,7 @@ def check_constraints(ppa_metrics: Dict[str, float]) -> bool:
 
 PARAM_LABELS = {
     "n_lanes": "Number of SIMD Lanes",
-    "target_clock_ns": "Target Clock Period (ns)",
+    "abc_clock_ps": "ABC Clock Period (ps)",
     "input_width": "Input Width (bits)",
     "output_width": "Output Width (bits)",
 }

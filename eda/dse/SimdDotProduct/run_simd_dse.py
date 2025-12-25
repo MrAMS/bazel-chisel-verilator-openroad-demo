@@ -60,7 +60,9 @@ def main():
 Design Space Parameters:
   - n_lanes: {simd_dse_config.N_LANES_MIN} to {simd_dse_config.N_LANES_MAX}
     (choices: {simd_dse_config.N_LANES_CHOICES})
-  - target_clock: {simd_dse_config.TARGET_CLOCK_MIN_NS}ns to {simd_dse_config.TARGET_CLOCK_MAX_NS}ns
+  - abc_clock_ps: {simd_dse_config.ABC_CLOCK_MIN_PS}ps to {simd_dse_config.ABC_CLOCK_MAX_PS}ps
+    This controls the clock frequency throughout the entire ORFS flow
+    (synthesis, CTS, timing repair)
 
 Optimization Objectives:
   - Maximize: GOPS (Giga Operations Per Second)
@@ -75,7 +77,7 @@ Expected Behavior:
      - GOPS plateaus despite area increase
 
 Output:
-  - PDF plots: Area-TOPS Pareto frontier, parameter sweeps
+  - PDF plots: Area-GOPS Pareto frontier, parameter sweeps
   - HTML dashboard: Interactive Optuna visualizations
   - Text report: Best configurations, all feasible solutions
         """,
@@ -128,7 +130,7 @@ Output:
     if args.quick_test:
         print("⚡ Quick test mode enabled")
         args.n_trials = 5
-        simd_dse_config.TARGET_CLOCK_MAX_NS = 5.0  # ~200 MHz
+        simd_dse_config.ABC_CLOCK_MAX_PS = 5000  # Limit to 5ns = 200 MHz
 
     # Create configuration
     config = create_simd_dse_config()
@@ -147,8 +149,8 @@ Output:
     print("\nParameter Space:")
     print(f"  n_lanes: {simd_dse_config.N_LANES_CHOICES}")
     print(
-        f"  target_clock: {simd_dse_config.TARGET_CLOCK_MIN_NS:.1f}ns - "
-        f"{simd_dse_config.TARGET_CLOCK_MAX_NS:.1f}ns"
+        f"  abc_clock_ps: {simd_dse_config.ABC_CLOCK_MIN_PS}ps - "
+        f"{simd_dse_config.ABC_CLOCK_MAX_PS}ps"
     )
     print("\nObjectives:")
     print(f"  Maximize: {config.performance_label}")
@@ -179,7 +181,7 @@ Output:
             )
             params = best_area_trial.user_attrs.get("params", {})
             print(f"  n_lanes = {params.get('n_lanes')}")
-            print(f"  target_clock = {params.get('target_clock_ns'):.2f} ns")
+            print(f"  abc_clock_ps = {params.get('abc_clock_ps')} ps")
             print(f"  Area = {best_area_trial.user_attrs['area']:.3f} um^2")
             print(f"  GOPS = {best_area_trial.user_attrs['performance']:.3f}")
 
@@ -189,7 +191,7 @@ Output:
             )
             params = best_perf_trial.user_attrs.get("params", {})
             print(f"  n_lanes = {params.get('n_lanes')}")
-            print(f"  target_clock = {params.get('target_clock_ns'):.2f} ns")
+            print(f"  abc_clock_ps = {params.get('abc_clock_ps')} ps")
             print(f"  Area = {best_perf_trial.user_attrs['area']:.3f} um^2")
             print(f"  GOPS = {best_perf_trial.user_attrs['performance']:.3f}")
 
