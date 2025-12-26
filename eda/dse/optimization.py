@@ -5,25 +5,22 @@ Optuna Optimization Functions
 Defines objective functions and constraint functions for Optuna-based DSE.
 """
 
-from typing import Tuple
 import optuna
 
-from dse_config import (
-    DSEConfig,
+from .bazel_builder import build_design
+from .dse_config import (
+    FAILED_BUILD_PENALTY,
+    SEVERE_VIOLATION,
     WORST_AREA,
     WORST_PERFORMANCE,
     WORST_SLACK,
-    SEVERE_VIOLATION,
-    FAILED_BUILD_PENALTY,
+    DSEConfig,
 )
-from bazel_builder import build_design
 
 
 def objective_function(
-    trial: optuna.Trial,
-    config: DSEConfig,
-    workspace_root: str
-) -> Tuple[float, float]:
+    trial: optuna.Trial, config: DSEConfig, workspace_root: str
+) -> tuple[float, float]:
     """Optuna objective function for multi-objective optimization.
 
     This function is called by Optuna for each trial to evaluate the design.
@@ -72,17 +69,21 @@ def objective_function(
     trial.set_user_attr("slack", result["slack"])
     trial.set_user_attr("constraint_violation", result["constraint_violation"])
 
+    assert isinstance(result["ppa_metrics"], dict)  # make pyright happy
+
     # Store raw PPA metrics with 'ppa_' prefix
     for key, value in result["ppa_metrics"].items():
         trial.set_user_attr(f"ppa_{key}", value)
 
+    assert not isinstance(result["area"], dict)  # make pyright happy
+    assert not isinstance(result["performance"], dict)  # make pyright happy
     # Return objectives for Optuna
     # Objective 1: Minimize area
     # Objective 2: Maximize performance -> Minimize -performance
-    return (result["area"], -result["performance"])
+    return (float(result["area"]), -float(result["performance"]))
 
 
-def constraint_function(trial: optuna.Trial) -> Tuple[float]:
+def constraint_function(trial: optuna.trial.FrozenTrial) -> tuple[float]:
     """Constraint function for Optuna optimization.
 
     Optuna requires constraints to be formulated as: constraint_value <= 0
@@ -119,14 +120,16 @@ def constraint_function(trial: optuna.Trial) -> Tuple[float]:
     # Get the unified constraint violation from design-specific implementation
     # This is calculated by config.calc_constraint_violation(ppa_metrics)
     # and stored directly by the objective function
-    constraint_violation = trial.user_attrs.get("constraint_violation", SEVERE_VIOLATION)
+    constraint_violation = trial.user_attrs.get(
+        "constraint_violation", SEVERE_VIOLATION
+    )
 
     return (constraint_violation,)
 
 
 def create_study(
-    study_name: str = None,
-    storage: str = None,
+    study_name: str,
+    storage: str | None,
     seed: int = 42,
 ) -> optuna.Study:
     """Create Optuna study for multi-objective optimization.
@@ -144,8 +147,7 @@ def create_study(
         storage=storage,
         directions=["minimize", "minimize"],  # Minimize area and -performance
         sampler=optuna.samplers.TPESampler(
-            seed=seed,
-            constraints_func=constraint_function
+            seed=seed, constraints_func=constraint_function
         ),
         load_if_exists=True if storage else False,
     )

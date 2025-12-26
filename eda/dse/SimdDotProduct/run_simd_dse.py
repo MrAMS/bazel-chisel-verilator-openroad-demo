@@ -6,23 +6,15 @@ This script integrates the generic DSE framework with SimdDotProduct-specific
 configuration to explore the architectural design space.
 
 Usage:
-    bazelisk run //eda/dse/SimdDotProduct:run_simd_dse -- [options]
-
-    Or directly:
-    python3 run_simd_dse.py [options]
+    bazel run //eda/dse/SimdDotProduct:run_simd_dse -- [options]
 """
 
 import argparse
-import os
 import sys
 
-# Add parent directories to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-sys.path.insert(0, os.path.dirname(__file__))
-
-import simd_dse_config
-from dse_config import DSEConfig, WORST_AREA
-from dse_runner import run_dse
+from eda.dse.dse_config import WORST_AREA, DSEConfig
+from eda.dse.dse_runner import run_dse
+from eda.dse.SimdDotProduct import simd_dse_config
 
 
 def create_simd_dse_config() -> DSEConfig:
@@ -175,7 +167,7 @@ Output:
         # Print summary
         if hasattr(study, "best_trials") and study.best_trials:
             print(f"\n✓ Found {len(study.best_trials)} Pareto optimal solutions")
-            print(f"\nBest area solution:")
+            print("\nBest area solution:")
             best_area_trial = min(
                 study.best_trials, key=lambda t: t.user_attrs.get("area", WORST_AREA)
             )
@@ -185,7 +177,7 @@ Output:
             print(f"  Area = {best_area_trial.user_attrs['area']:.3f} um^2")
             print(f"  GOPS = {best_area_trial.user_attrs['performance']:.3f}")
 
-            print(f"\nBest performance solution:")
+            print("\nBest performance solution:")
             best_perf_trial = max(
                 study.best_trials, key=lambda t: t.user_attrs.get("performance", 0)
             )

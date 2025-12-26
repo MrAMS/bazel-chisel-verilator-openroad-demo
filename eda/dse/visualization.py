@@ -10,7 +10,6 @@ Generates comprehensive visualizations for DSE results including:
 """
 
 import os
-from typing import Any, Dict, List
 
 import matplotlib
 
@@ -18,8 +17,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import optuna
-from dse_config import SEVERE_VIOLATION, WORST_AREA, WORST_PERFORMANCE, DSEConfig
 from matplotlib.backends.backend_pdf import PdfPages
+
+from .dse_config import SEVERE_VIOLATION, WORST_AREA, WORST_PERFORMANCE, DSEConfig
 
 
 def collect_trial_data(study: optuna.Study) -> tuple:
@@ -86,9 +86,9 @@ def setup_plot_style():
 def plot_area_vs_performance(
     pdf: PdfPages,
     study: optuna.Study,
-    feasible: List[Dict],
-    infeasible: List[Dict],
-    failed: List[Dict],
+    feasible: list[dict],
+    infeasible: list[dict],
+    failed: list[dict],
     config: DSEConfig,
 ):
     """Plot Area vs Performance Pareto frontier.
@@ -214,7 +214,7 @@ def plot_area_vs_performance(
 
 
 def plot_parameter_sweeps(
-    pdf: PdfPages, feasible: List[Dict], infeasible: List[Dict], config: DSEConfig
+    pdf: PdfPages, feasible: list[dict], infeasible: list[dict], config: DSEConfig
 ):
     """Plot parameter sweep plots for each design parameter.
 
@@ -284,7 +284,7 @@ def plot_parameter_sweeps(
         plt.close()
 
 
-def plot_optimization_history(pdf: PdfPages, feasible: List[Dict], config: DSEConfig):
+def plot_optimization_history(pdf: PdfPages, feasible: list[dict], config: DSEConfig):
     """Plot optimization history showing convergence over trials.
 
     Creates two subplots:

@@ -7,14 +7,13 @@ Handles building designs with Bazel and parsing PPA metrics.
 
 import os
 import subprocess
-from typing import Dict, Any
 
-from dse_config import (
-    DSEConfig,
+from .dse_config import (
+    SEVERE_VIOLATION,
     WORST_AREA,
     WORST_PERFORMANCE,
     WORST_SLACK,
-    SEVERE_VIOLATION,
+    DSEConfig,
 )
 
 
@@ -27,10 +26,10 @@ def find_workspace_root() -> str:
     Returns:
         Path to workspace root
     """
-    return os.environ.get('BUILD_WORKSPACE_DIRECTORY', os.getcwd())
+    return os.environ.get("BUILD_WORKSPACE_DIRECTORY", os.getcwd())
 
 
-def parse_ppa_metrics(ppa_file: str) -> Dict[str, float]:
+def parse_ppa_metrics(ppa_file: str) -> dict[str, float]:
     """Parse PPA metrics from results.tcl output file.
 
     The PPA file should contain lines in format:
@@ -52,8 +51,8 @@ def parse_ppa_metrics(ppa_file: str) -> Dict[str, float]:
         with open(ppa_file) as f:
             for line in f:
                 line = line.strip()
-                if ':' in line and not line.startswith('#'):
-                    key, value = line.split(':', 1)
+                if ":" in line and not line.startswith("#"):
+                    key, value = line.split(":", 1)
                     try:
                         metrics[key.strip()] = float(value.strip())
                     except ValueError:
@@ -73,10 +72,10 @@ def parse_ppa_metrics(ppa_file: str) -> Dict[str, float]:
 
 def build_design(
     config: DSEConfig,
-    params: Dict[str, Any],
+    params: dict[str, str | int | float | bool],
     workspace_root: str,
-    timeout: int = 600
-) -> Dict[str, Any]:
+    timeout: int = 600,
+) -> dict[str, str | int | float | bool | dict]:
     """Build design with given parameters and extract PPA metrics.
 
     This function:
@@ -150,7 +149,7 @@ def build_design(
             "performance": WORST_PERFORMANCE,
             "slack": WORST_SLACK,
             "constraint_violation": SEVERE_VIOLATION,
-            "ppa_metrics": {}
+            "ppa_metrics": {},
         }
 
     # Check build status
@@ -165,13 +164,13 @@ def build_design(
             "performance": WORST_PERFORMANCE,
             "slack": WORST_SLACK,
             "constraint_violation": SEVERE_VIOLATION,
-            "ppa_metrics": {}
+            "ppa_metrics": {},
         }
 
     # Parse PPA metrics
     ppa_file = os.path.join(
         workspace_root,
-        f"bazel-bin/eda/{config.design_name}/{config.design_name}_ppa.txt"
+        f"bazel-bin/eda/{config.design_name}/{config.design_name}_ppa.txt",
     )
 
     try:
@@ -185,7 +184,7 @@ def build_design(
             "performance": WORST_PERFORMANCE,
             "slack": WORST_SLACK,
             "constraint_violation": SEVERE_VIOLATION,
-            "ppa_metrics": {}
+            "ppa_metrics": {},
         }
 
     # Calculate derived metrics
@@ -203,18 +202,20 @@ def build_design(
             "performance": WORST_PERFORMANCE,
             "slack": WORST_SLACK,
             "constraint_violation": SEVERE_VIOLATION,
-            "ppa_metrics": ppa_metrics
+            "ppa_metrics": ppa_metrics,
         }
 
     # Print results summary
     # Derive boolean constraint check from constraint_violation for display
-    meets_constraints = (constraint_violation <= 0)
+    meets_constraints = constraint_violation <= 0
     constraint_str = "✓" if meets_constraints else "✗"
     print(f"{constraint_str} Constraints: {'MET' if meets_constraints else 'VIOLATED'}")
     print(f"  Area: {area:.3f}")
     print(f"  Performance: {performance:.3f}")
     print(f"  Slack: {slack:.3f} ps")
-    print(f"  Constraint Violation: {constraint_violation:.3f} ({'OK' if constraint_violation <= 0 else 'VIOLATED'})")
+    print(
+        f"  Constraint Violation: {constraint_violation:.3f} ({'OK' if constraint_violation <= 0 else 'VIOLATED'})"
+    )
 
     # Print raw PPA metrics
     print("  Raw PPA metrics:")

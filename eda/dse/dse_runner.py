@@ -7,14 +7,13 @@ design space exploration process.
 """
 
 import os
-from typing import Optional
 
 import optuna
 
-from dse_config import DSEConfig, SEVERE_VIOLATION
-from bazel_builder import find_workspace_root
-from optimization import create_study, objective_function
-from visualization import generate_visualizations, generate_html_dashboard
+from .bazel_builder import find_workspace_root
+from .dse_config import SEVERE_VIOLATION, DSEConfig
+from .optimization import create_study, objective_function
+from .visualization import generate_html_dashboard, generate_visualizations
 
 
 def print_results_summary(study: optuna.Study, config: DSEConfig):
@@ -26,12 +25,12 @@ def print_results_summary(study: optuna.Study, config: DSEConfig):
     """
     print(f"\n{'=' * 70}\nResults Summary\n{'=' * 70}")
 
-    if hasattr(study, 'best_trials') and study.best_trials:
+    if hasattr(study, "best_trials") and study.best_trials:
         print(f"\n✓ Found {len(study.best_trials)} Pareto optimal solutions")
 
         # Show top 5 solutions
         for i, trial in enumerate(study.best_trials[:5]):
-            print(f"\nSolution {i+1}:")
+            print(f"\nSolution {i + 1}:")
             params = trial.user_attrs.get("params", {})
             for key, value in params.items():
                 if isinstance(value, float):
@@ -74,11 +73,11 @@ def save_text_results(study: optuna.Study, config: DSEConfig, output_dir: str):
         f.write(f"{config.design_name} DSE Results\n")
         f.write("=" * 70 + "\n\n")
 
-        if hasattr(study, 'best_trials') and study.best_trials:
+        if hasattr(study, "best_trials") and study.best_trials:
             f.write(f"Pareto optimal solutions: {len(study.best_trials)}\n\n")
 
             for i, trial in enumerate(study.best_trials):
-                f.write(f"Solution {i+1}:\n")
+                f.write(f"Solution {i + 1}:\n")
                 params = trial.user_attrs.get("params", {})
                 for key, value in params.items():
                     f.write(f"  {key} = {value}\n")
@@ -93,8 +92,10 @@ def save_text_results(study: optuna.Study, config: DSEConfig, output_dir: str):
         for trial in study.trials:
             if trial.state == optuna.trial.TrialState.COMPLETE:
                 failed = trial.user_attrs.get("failed", False)
-                constraint_violation = trial.user_attrs.get("constraint_violation", SEVERE_VIOLATION)
-                meets_constraints = (constraint_violation <= 0)
+                constraint_violation = trial.user_attrs.get(
+                    "constraint_violation", SEVERE_VIOLATION
+                )
+                meets_constraints = constraint_violation <= 0
 
                 if not failed and meets_constraints:
                     params = trial.user_attrs.get("params", {})
@@ -112,11 +113,11 @@ def save_text_results(study: optuna.Study, config: DSEConfig, output_dir: str):
 
 def run_dse(
     config: DSEConfig,
-    n_trials: int = 20,
-    seed: int = 42,
-    output_dir: str = "dse_results",
-    study_name: Optional[str] = None,
-    storage: Optional[str] = None
+    n_trials: int,
+    seed: int,
+    output_dir: str,
+    study_name: str,
+    storage: str | None,
 ) -> optuna.Study:
     """Run complete design space exploration.
 

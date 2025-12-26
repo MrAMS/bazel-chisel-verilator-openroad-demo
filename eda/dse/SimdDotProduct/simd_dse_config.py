@@ -10,16 +10,9 @@ SIMD Dot Product design, including:
 - Effective frequency calculation based on WNS
 """
 
-import sys
-import os
-from typing import Any, Dict, List
-
 import optuna
 
-# Add parent directory to path for imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-
-from dse_config import WORST_AREA, WORST_SLACK, SEVERE_VIOLATION
+from ..dse_config import SEVERE_VIOLATION, WORST_AREA, WORST_SLACK
 
 # ============================================================================
 # DSE Parameter Ranges
@@ -61,7 +54,7 @@ OUTPUT_WIDTH = 32  # Fixed 16-bit output (may overflow for large n_lanes)
 # ============================================================================
 
 
-def suggest_params(trial: optuna.Trial) -> Dict[str, Any]:
+def suggest_params(trial: optuna.Trial) -> dict[str, str | int | float | bool]:
     """Suggest trial parameters for SimdDotProduct DSE.
 
     Args:
@@ -89,7 +82,7 @@ def suggest_params(trial: optuna.Trial) -> Dict[str, Any]:
     }
 
 
-def get_env_vars(params: Dict[str, Any]) -> Dict[str, str]:
+def get_env_vars(params: dict[str, str | int | float | bool]) -> dict[str, str]:
     """Generate environment variables for Bazel build.
 
     Note: For OpenROAD flow, we use --define instead of environment variables
@@ -105,7 +98,7 @@ def get_env_vars(params: Dict[str, Any]) -> Dict[str, str]:
     return {}
 
 
-def get_bazel_opts(params: Dict[str, Any]) -> List[str]:
+def get_bazel_opts(params: dict[str, str | int | float | bool]) -> list[str]:
     """Generate Bazel build options.
 
     Args:
@@ -127,7 +120,9 @@ def get_bazel_opts(params: Dict[str, Any]) -> List[str]:
     ]
 
 
-def calc_performance(ppa_metrics: Dict[str, float], params: Dict[str, Any]) -> float:
+def calc_performance(
+    ppa_metrics: dict[str, float], params: dict[str, str | int | float | bool]
+) -> float:
     """Calculate GOPS (Giga Operations Per Second) performance.
 
     Performance calculation:
@@ -154,7 +149,7 @@ def calc_performance(ppa_metrics: Dict[str, float], params: Dict[str, Any]) -> f
         Performance in GOPS
     """
     f_real_ghz = ppa_metrics.get("effective_frequency_ghz", 0.0)
-    n_lanes = params["n_lanes"]
+    n_lanes = float(params["n_lanes"])
 
     # GOPS = 2 ops/lane * n_lanes * frequency(GHz)
     gops = 2.0 * n_lanes * f_real_ghz
@@ -162,7 +157,7 @@ def calc_performance(ppa_metrics: Dict[str, float], params: Dict[str, Any]) -> f
     return gops
 
 
-def calc_area(ppa_metrics: Dict[str, float]) -> float:
+def calc_area(ppa_metrics: dict[str, float]) -> float:
     """Extract cell area from PPA metrics.
 
     Args:
@@ -174,7 +169,7 @@ def calc_area(ppa_metrics: Dict[str, float]) -> float:
     return ppa_metrics.get("cell_area", WORST_AREA)
 
 
-def get_slack(ppa_metrics: Dict[str, float]) -> float:
+def get_slack(ppa_metrics: dict[str, float]) -> float:
     """Extract timing slack from PPA metrics.
 
     Args:
@@ -189,7 +184,7 @@ def get_slack(ppa_metrics: Dict[str, float]) -> float:
     return ppa_metrics.get("slack", WORST_SLACK)
 
 
-def calc_constraint_violation(ppa_metrics: Dict[str, float]) -> float:
+def calc_constraint_violation(ppa_metrics: dict[str, float]) -> float:
     """Calculate unified constraint violation for Optuna optimization.
 
     This function combines all design constraints into a single continuous

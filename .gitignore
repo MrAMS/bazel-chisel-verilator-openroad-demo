@@ -9,6 +9,9 @@ external/
 compile_commands.json
 .cache/
 
+# Python
+.venv/
+
 # bazel build
 bazel-*
 
