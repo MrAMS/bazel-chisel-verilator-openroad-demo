@@ -4,17 +4,13 @@
 
 ## 项目概述
 
-本项目探索SimdDotProduct设计的参数空间，寻找**Area**和**TOPS**之间的帕累托最优解。
-
-### 核心假设
-
-随着SIMD并行度（n_lanes）增加，组合逻辑深度增长导致时序违例，有效频率下降，最终导致性能饱和——即"逻辑深度墙"现象。
+本项目探索SimdDotProduct设计的参数空间，寻找**Area**和**GOPS**之间的帕累托最优解。
 
 ### 优化目标
 
-- **最大化**: TOPS (Tera Operations Per Second)
-  - `TOPS = 2 × n_lanes × F_real / 1000`
-  - F_real = 基于WNS的有效频率
+- **最大化**: GOPS (Giga Operations Per Second)
+  - `GOPS = 2 × n_lanes × F_real`
+  - F_real = 基于WNS的有效频率 (GHz)
 
 - **最小化**: Cell Area (μm²)
 
@@ -35,7 +31,7 @@ eda/
     ├── dse_runner.py            # 主运行接口
     │
     └── SimdDotProduct/          # SimdDotProduct专用
-        ├── simd_dse_config.py   # 参数空间和TOPS计算
+        ├── simd_dse_config.py   # 参数空间和GOPS计算
         └── run_simd_dse.py      # 主执行脚本
 ```
 
@@ -43,10 +39,10 @@ eda/
 
 | 参数 | 范围 | 说明 |
 |------|------|------|
-| `n_lanes` | [4, 8, 16, 32, 64, 128] | SIMD并行度 |
-| `target_clock_ns` | 2.0 ~ 20.0 ns | 目标时钟周期 (50MHz ~ 500MHz) |
+| `n_lanes` | [4, 8, 12, 16, 20, 24, 28, 32] | SIMD并行度 |
+| `abc_clock_ps` | 350 ~ 1250 ps | ABC时钟周期 (800MHz ~ 2.86GHz) |
 | `input_width` | 8 (固定) | 输入位宽 |
-| `output_width` | 16 (固定) | 输出位宽 |
+| `output_width` | 32 (固定) | 输出位宽 |
 
 ## 快速开始
 
@@ -88,9 +84,9 @@ DSE完成后会在输出目录生成：
 
 ### PDF报告 (`SimdDotProduct_dse_results.pdf`)
 
-1. **Area vs TOPS帕累托前沿** - 主图，标注最优解
-2. **n_lanes参数扫描** - n_lanes vs Area/TOPS
-3. **target_clock参数扫描** - clock vs Area/TOPS
+1. **Area vs GOPS帕累托前沿** - 主图，标注最优解
+2. **n_lanes参数扫描** - n_lanes vs Area/GOPS
+3. **abc_clock_ps参数扫描** - clock vs Area/GOPS
 4. **优化历史曲线** - 收敛性分析
 
 ### HTML交互式Dashboard
@@ -101,23 +97,6 @@ DSE完成后会在输出目录生成：
 
 - 帕累托最优解列表
 - 所有可行解的参数组合
-
-## 预期结果
-
-根据"逻辑深度墙"假设，Area-TOPS曲线应呈现：
-
-1. **线性区** (n_lanes = 4~16)
-   - 陡峭上升，面积增加直接换来性能提升
-   - slack > 0，时序裕量充足
-
-2. **膝点** (n_lanes = 32~64)
-   - 最佳性价比点
-   - slack ≈ 0，接近时序边界
-
-3. **饱和区** (n_lanes = 128+)
-   - 曲线趋于平缓甚至下降
-   - slack < 0，有效频率暴跌
-   - 面积翻倍但TOPS几乎不增长
 
 ## 关键技术特性
 
@@ -130,20 +109,13 @@ else:
     F_real = 1 / T_target
 ```
 
-### 连续约束优化
+### 统一约束优化
 
 ```python
-# 使用slack的连续值而非二元0/1
-constraint = -slack  # 提供梯度信息给Optuna
-```
-
-### 参数化时钟约束
-
-```tcl
-# constraints.sdc中读取环境变量
-if {[info exists env(TARGET_CLOCK_NS)]} {
-    set clk_period [expr {$env(TARGET_CLOCK_NS) * 1000}]
-}
+# 使用constraint_violation连续值提供梯度信息
+constraint_violation = calc_constraint_violation(ppa_metrics)
+# constraint_violation <= 0: 约束满足
+# constraint_violation > 0: 约束违反
 ```
 
 ## 扩展到其他设计
@@ -152,21 +124,16 @@ DSE框架是通用的，添加新设计只需：
 
 1. 在`eda/<DesignName>/`创建EDA流程文件
 2. 在`eda/dse/<DesignName>/`创建专用配置：
-   - 实现`suggest_params()` - 参数空间
+   - 实现`suggest_params()` - 定义参数空间
+   - 实现`get_env_vars()` - 环境变量映射
+   - 实现`get_bazel_opts()` - Bazel选项生成
+   - 实现`calc_area()` - 面积提取
    - 实现`calc_performance()` - 性能计算
-   - 实现`check_constraints()` - 约束检查
+   - 实现`get_slack()` - 时序余量提取
+   - 实现`calc_constraint_violation()` - 统一约束检查
 3. 创建主执行脚本调用`run_dse()`
 
 参考`eda/dse/SimdDotProduct/`的实现。
-
-## 依赖
-
-- Bazel (构建系统)
-- OpenROAD (EDA工具链)
-- Python ≥ 3.8
-- Optuna ≥ 3.0.0
-- Matplotlib ≥ 3.5.0
-- NumPy ≥ 1.21.0
 
 ## 命令行选项
 

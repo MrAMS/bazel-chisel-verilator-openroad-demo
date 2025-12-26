@@ -8,7 +8,14 @@ Defines objective functions and constraint functions for Optuna-based DSE.
 from typing import Tuple
 import optuna
 
-from dse_config import DSEConfig
+from dse_config import (
+    DSEConfig,
+    WORST_AREA,
+    WORST_PERFORMANCE,
+    WORST_SLACK,
+    SEVERE_VIOLATION,
+    FAILED_BUILD_PENALTY,
+)
 from bazel_builder import build_design
 
 
@@ -53,15 +60,17 @@ def objective_function(
     # Handle build failures
     if result["failed"]:
         # Return worst-case values to discourage failed builds
-        trial.set_user_attr("area", 1e9)
-        trial.set_user_attr("performance", 0.0)
-        trial.set_user_attr("meets_constraints", False)
-        return (1e9, 1e9)  # Both objectives are minimized
+        trial.set_user_attr("area", WORST_AREA)
+        trial.set_user_attr("performance", WORST_PERFORMANCE)
+        trial.set_user_attr("slack", WORST_SLACK)
+        trial.set_user_attr("constraint_violation", SEVERE_VIOLATION)
+        return (WORST_AREA, -WORST_PERFORMANCE)  # Both objectives are minimized
 
     # Store successful build results
     trial.set_user_attr("area", result["area"])
     trial.set_user_attr("performance", result["performance"])
-    trial.set_user_attr("meets_constraints", result["meets_constraints"])
+    trial.set_user_attr("slack", result["slack"])
+    trial.set_user_attr("constraint_violation", result["constraint_violation"])
 
     # Store raw PPA metrics with 'ppa_' prefix
     for key, value in result["ppa_metrics"].items():
@@ -79,39 +88,40 @@ def constraint_function(trial: optuna.Trial) -> Tuple[float]:
     Optuna requires constraints to be formulated as: constraint_value <= 0
     A negative value means the constraint is satisfied.
 
-    This function returns -slack to provide continuous gradient information:
-    - slack > 0 (timing met with margin): constraint < 0 (satisfied, more negative is better)
-    - slack = 0 (timing exactly met): constraint = 0 (boundary)
-    - slack < 0 (timing violated): constraint > 0 (violated, more positive is worse)
+    This function returns the unified constraint violation calculated by
+    config.calc_constraint_violation(), which combines all design constraints
+    (timing, area, power, etc.) into a single continuous metric:
 
-    By using continuous slack values instead of binary 0/1, we give Optuna's
-    sampler information about how far each design is from the constraint boundary,
-    enabling better exploration and convergence.
+    - constraint_violation <= 0: all constraints satisfied
+      - More negative = more timing margin (slack)
+    - constraint_violation > 0: one or more constraints violated
+      - Small positive: timing violated (= -slack where slack < 0)
+      - Large positive (SEVERE_VIOLATION): hard constraint violated (area/freq/power)
+
+    By using the continuous constraint_violation value instead of binary 0/1,
+    we give Optuna's sampler gradient information about how far each design is
+    from the constraint boundary, enabling better exploration and convergence.
 
     Args:
         trial: Optuna Trial object
 
     Returns:
-        Tuple containing constraint value based on slack:
-        - Negative value: constraint satisfied with margin
-        - Zero: constraint exactly met
-        - Positive value: constraint violated
+        Tuple containing constraint violation value:
+        - Negative: constraints satisfied with margin
+        - Zero: constraints exactly met
+        - Positive: constraints violated
     """
     # For failed builds, return large positive value (severe constraint violation)
     failed = trial.user_attrs.get("failed", False)
     if failed:
-        return (1e6,)
+        return (FAILED_BUILD_PENALTY,)
 
-    # Get slack from PPA metrics (in picoseconds)
-    # slack > 0: timing met (has setup margin)
-    # slack = 0: timing exactly met
-    # slack < 0: timing violated
-    slack = trial.user_attrs.get("ppa_slack", -1e9)
+    # Get the unified constraint violation from design-specific implementation
+    # This is calculated by config.calc_constraint_violation(ppa_metrics)
+    # and stored directly by the objective function
+    constraint_violation = trial.user_attrs.get("constraint_violation", SEVERE_VIOLATION)
 
-    # Return -slack to satisfy Optuna's constraint convention (value <= 0)
-    # - slack > 0 -> constraint < 0 (satisfied)
-    # - slack < 0 -> constraint > 0 (violated)
-    return (-slack,)
+    return (constraint_violation,)
 
 
 def create_study(

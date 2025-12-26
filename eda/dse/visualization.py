@@ -10,16 +10,16 @@ Generates comprehensive visualizations for DSE results including:
 """
 
 import os
-from typing import List, Dict, Any
+from typing import Any, Dict, List
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
 import numpy as np
 import optuna
-
-from dse_config import DSEConfig
+from dse_config import SEVERE_VIOLATION, WORST_AREA, WORST_PERFORMANCE, DSEConfig
+from matplotlib.backends.backend_pdf import PdfPages
 
 
 def collect_trial_data(study: optuna.Study) -> tuple:
@@ -42,10 +42,12 @@ def collect_trial_data(study: optuna.Study) -> tuple:
         trial_data = {
             "number": trial.number,
             "params": trial.user_attrs.get("params", {}),
-            "area": trial.user_attrs.get("area", 1e9),
-            "performance": trial.user_attrs.get("performance", 0.0),
+            "area": trial.user_attrs.get("area", WORST_AREA),
+            "performance": trial.user_attrs.get("performance", WORST_PERFORMANCE),
             "failed": trial.user_attrs.get("failed", False),
-            "meets_constraints": trial.user_attrs.get("meets_constraints", False),
+            "constraint_violation": trial.user_attrs.get(
+                "constraint_violation", SEVERE_VIOLATION
+            ),
         }
 
         # Copy PPA metrics
@@ -53,10 +55,10 @@ def collect_trial_data(study: optuna.Study) -> tuple:
             if key.startswith("ppa_"):
                 trial_data[key] = value
 
-        # Categorize trials
+        # Categorize trials based on constraint_violation
         if trial_data["failed"]:
             failed_trials.append(trial_data)
-        elif trial_data["meets_constraints"]:
+        elif trial_data["constraint_violation"] <= 0:
             feasible_trials.append(trial_data)
         else:
             infeasible_trials.append(trial_data)
@@ -66,17 +68,19 @@ def collect_trial_data(study: optuna.Study) -> tuple:
 
 def setup_plot_style():
     """Configure matplotlib plot style for publication quality."""
-    plt.rcParams.update({
-        'font.size': 11,
-        'axes.labelsize': 13,
-        'axes.titlesize': 14,
-        'legend.fontsize': 11,
-        'figure.dpi': 150,
-        'savefig.dpi': 300,
-        'axes.grid': True,
-        'grid.alpha': 0.3,
-        'grid.linestyle': '--',
-    })
+    plt.rcParams.update(
+        {
+            "font.size": 11,
+            "axes.labelsize": 13,
+            "axes.titlesize": 14,
+            "legend.fontsize": 11,
+            "figure.dpi": 150,
+            "savefig.dpi": 300,
+            "axes.grid": True,
+            "grid.alpha": 0.3,
+            "grid.linestyle": "--",
+        }
+    )
 
 
 def plot_area_vs_performance(
@@ -85,7 +89,7 @@ def plot_area_vs_performance(
     feasible: List[Dict],
     infeasible: List[Dict],
     failed: List[Dict],
-    config: DSEConfig
+    config: DSEConfig,
 ):
     """Plot Area vs Performance Pareto frontier.
 
@@ -107,21 +111,35 @@ def plot_area_vs_performance(
         perfs = [t["performance"] for t in feasible]
 
         ax.scatter(
-            areas, perfs,
-            c="lightblue", s=200, alpha=0.6, edgecolors="gray", linewidth=1,
-            label=f"Feasible ({len(feasible)})", marker="o", zorder=2
+            areas,
+            perfs,
+            c="lightblue",
+            s=200,
+            alpha=0.6,
+            edgecolors="gray",
+            linewidth=1,
+            label=f"Feasible ({len(feasible)})",
+            marker="o",
+            zorder=2,
         )
 
         # Get and plot Pareto front
-        pareto_trials = study.best_trials if hasattr(study, 'best_trials') else []
+        pareto_trials = study.best_trials if hasattr(study, "best_trials") else []
         if pareto_trials:
             pareto_areas = [t.user_attrs.get("area", 0) for t in pareto_trials]
             pareto_perfs = [t.user_attrs.get("performance", 0) for t in pareto_trials]
 
             ax.scatter(
-                pareto_areas, pareto_perfs,
-                c="red", s=400, alpha=0.95, edgecolors="black", linewidth=2.5,
-                label=f"Pareto Optimal ({len(pareto_trials)})", marker="*", zorder=10
+                pareto_areas,
+                pareto_perfs,
+                c="red",
+                s=400,
+                alpha=0.95,
+                edgecolors="black",
+                linewidth=2.5,
+                label=f"Pareto Optimal ({len(pareto_trials)})",
+                marker="*",
+                zorder=10,
             )
 
             # Draw Pareto curve
@@ -129,17 +147,26 @@ def plot_area_vs_performance(
             sorted_areas = [pareto_areas[i] for i in sorted_idx]
             sorted_perfs = [pareto_perfs[i] for i in sorted_idx]
             ax.plot(
-                sorted_areas, sorted_perfs,
-                "r--", linewidth=2.5, alpha=0.7, label="Pareto Front", zorder=8
+                sorted_areas,
+                sorted_perfs,
+                "r--",
+                linewidth=2.5,
+                alpha=0.7,
+                label="Pareto Front",
+                zorder=8,
             )
 
             # Annotate Pareto points
             for i, (a, p) in enumerate(zip(pareto_areas, pareto_perfs)):
                 ax.annotate(
-                    f"{i+1}",
-                    xy=(a, p), xytext=(5, 5), textcoords="offset points",
-                    fontsize=9, fontweight="bold", color="white",
-                    bbox=dict(boxstyle="circle,pad=0.3", fc="red", ec="black", lw=1.5)
+                    f"{i + 1}",
+                    xy=(a, p),
+                    xytext=(5, 5),
+                    textcoords="offset points",
+                    fontsize=9,
+                    fontweight="bold",
+                    color="white",
+                    bbox=dict(boxstyle="circle,pad=0.3", fc="red", ec="black", lw=1.5),
                 )
 
     # Plot infeasible points
@@ -147,8 +174,13 @@ def plot_area_vs_performance(
         ax.scatter(
             [t["area"] for t in infeasible],
             [t["performance"] for t in infeasible],
-            c="gray", s=150, alpha=0.4, edgecolors="red", linewidth=2,
-            label=f"Constraint Violated ({len(infeasible)})", marker="x", zorder=1
+            c="red",
+            s=150,
+            alpha=0.5,
+            linewidth=2,
+            label=f"Constraint Violated ({len(infeasible)})",
+            marker="x",
+            zorder=1,
         )
 
     # Plot failed builds
@@ -157,15 +189,22 @@ def plot_area_vs_performance(
         ax.scatter(
             [0] * len(failed),
             [0] * len(failed),
-            c="red", s=300, alpha=0.8, edgecolors="darkred", linewidth=2,
-            label=f"Build Failed ({len(failed)})", marker="X", zorder=10
+            c="red",
+            s=300,
+            alpha=0.8,
+            edgecolors="darkred",
+            linewidth=2,
+            label=f"Build Failed ({len(failed)})",
+            marker="X",
+            zorder=10,
         )
 
     ax.set_xlabel(config.area_label, fontweight="bold")
     ax.set_ylabel(config.performance_label, fontweight="bold")
     ax.set_title(
         f"{config.design_name}: Area-Performance Pareto Frontier\n(Upper-left is better)",
-        fontweight="bold", pad=15
+        fontweight="bold",
+        pad=15,
     )
     ax.legend(loc="best", framealpha=0.9)
     ax.grid(True, alpha=0.3)
@@ -175,10 +214,7 @@ def plot_area_vs_performance(
 
 
 def plot_parameter_sweeps(
-    pdf: PdfPages,
-    feasible: List[Dict],
-    infeasible: List[Dict],
-    config: DSEConfig
+    pdf: PdfPages, feasible: List[Dict], infeasible: List[Dict], config: DSEConfig
 ):
     """Plot parameter sweep plots for each design parameter.
 
@@ -207,10 +243,18 @@ def plot_parameter_sweeps(
 
         # Param vs Area (colored by Performance)
         scatter1 = ax1.scatter(
-            param_values, areas, c=perfs,
-            cmap="plasma", s=200, alpha=0.7, edgecolors="black", linewidth=1.5
+            param_values,
+            areas,
+            c=perfs,
+            cmap="plasma",
+            s=200,
+            alpha=0.7,
+            edgecolors="black",
+            linewidth=1.5,
         )
-        ax1.set_xlabel(config.param_labels.get(param_name, param_name), fontweight="bold")
+        ax1.set_xlabel(
+            config.param_labels.get(param_name, param_name), fontweight="bold"
+        )
         ax1.set_ylabel(config.area_label, fontweight="bold")
         ax1.set_title(f"{param_name} vs Area (Color = Performance)")
         ax1.grid(True, alpha=0.3)
@@ -218,10 +262,18 @@ def plot_parameter_sweeps(
 
         # Param vs Performance (colored by Area)
         scatter2 = ax2.scatter(
-            param_values, perfs, c=areas,
-            cmap="viridis", s=200, alpha=0.7, edgecolors="black", linewidth=1.5
+            param_values,
+            perfs,
+            c=areas,
+            cmap="viridis",
+            s=200,
+            alpha=0.7,
+            edgecolors="black",
+            linewidth=1.5,
         )
-        ax2.set_xlabel(config.param_labels.get(param_name, param_name), fontweight="bold")
+        ax2.set_xlabel(
+            config.param_labels.get(param_name, param_name), fontweight="bold"
+        )
         ax2.set_ylabel(config.performance_label, fontweight="bold")
         ax2.set_title(f"{param_name} vs Performance (Color = Area)")
         ax2.grid(True, alpha=0.3)
@@ -232,11 +284,7 @@ def plot_parameter_sweeps(
         plt.close()
 
 
-def plot_optimization_history(
-    pdf: PdfPages,
-    feasible: List[Dict],
-    config: DSEConfig
-):
+def plot_optimization_history(pdf: PdfPages, feasible: List[Dict], config: DSEConfig):
     """Plot optimization history showing convergence over trials.
 
     Creates two subplots:
@@ -296,11 +344,7 @@ def plot_optimization_history(
     plt.close()
 
 
-def generate_visualizations(
-    study: optuna.Study,
-    config: DSEConfig,
-    output_file: str
-):
+def generate_visualizations(study: optuna.Study, config: DSEConfig, output_file: str):
     """Generate comprehensive visualization plots for DSE results.
 
     Creates a PDF file containing:
@@ -337,11 +381,7 @@ def generate_visualizations(
     print(f"✓ Plots saved to {os.path.abspath(output_file)}")
 
 
-def generate_html_dashboard(
-    study: optuna.Study,
-    config: DSEConfig,
-    output_dir: str
-):
+def generate_html_dashboard(study: optuna.Study, config: DSEConfig, output_dir: str):
     """Generate interactive HTML dashboards using Optuna's visualization tools.
 
     Creates:
@@ -356,11 +396,8 @@ def generate_html_dashboard(
     try:
         # Pareto front (multi-objective)
         optuna.visualization.plot_pareto_front(
-            study,
-            target_names=["Area (μm²)", "Performance (GOPS)"]
-        ).write_html(
-            os.path.join(output_dir, f"{config.design_name}_pareto.html")
-        )
+            study, target_names=["Area (μm²)", "Performance (GOPS)"]
+        ).write_html(os.path.join(output_dir, f"{config.design_name}_pareto.html"))
 
         # Parameter importances (only if enough trials)
         if len(study.trials) >= 10:
@@ -368,19 +405,29 @@ def generate_html_dashboard(
                 # For multi-objective, plot importance for each target
                 optuna.visualization.plot_param_importances(
                     study,
-                    target=lambda t: t.values[0]  # Area
+                    target=lambda t: t.values[0],  # Area
+                    target_name="Area (μm²)",
                 ).write_html(
-                    os.path.join(output_dir, f"{config.design_name}_area_importance.html")
+                    os.path.join(
+                        output_dir, f"{config.design_name}_area_importance.html"
+                    )
                 )
 
                 optuna.visualization.plot_param_importances(
                     study,
-                    target=lambda t: t.values[1]  # Performance
+                    target=lambda t: t.values[1],  # Performance
+                    target_name="Performance (GOPS)",
                 ).write_html(
-                    os.path.join(output_dir, f"{config.design_name}_perf_importance.html")
+                    os.path.join(
+                        output_dir, f"{config.design_name}_perf_importance.html"
+                    )
                 )
-            except:
-                pass  # Skip if can't calculate importances
+            except Exception as e:
+                print(f"⚠ Failed to generate parameter importance plots: {e}")
+        else:
+            print(
+                f"⚠ Skipping parameter importance plots (need >= 10 trials, got {len(study.trials)})"
+            )
 
         print(f"✓ HTML dashboards saved to {output_dir}")
 

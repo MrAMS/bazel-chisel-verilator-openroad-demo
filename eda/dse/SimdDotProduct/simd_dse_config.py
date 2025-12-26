@@ -10,9 +10,16 @@ SIMD Dot Product design, including:
 - Effective frequency calculation based on WNS
 """
 
+import sys
+import os
 from typing import Any, Dict, List
 
 import optuna
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+from dse_config import WORST_AREA, WORST_SLACK, SEVERE_VIOLATION
 
 # ============================================================================
 # DSE Parameter Ranges
@@ -26,18 +33,27 @@ import optuna
 #   - High values (128+): Saturation region (logic depth wall)
 N_LANES_MIN = 4
 N_LANES_MAX = 128
-N_LANES_CHOICES = [4, 8, 16, 32, 64, 128]  # Explicit choices for faster exploration
+N_LANES_CHOICES = [
+    4,
+    8,
+    12,
+    16,
+    20,
+    24,
+    28,
+    32,
+]  # Explicit choices for faster exploration
 
 # Physical constraint: ABC clock period in picoseconds
 # Determines "how hard we push the accelerator"
 # Tighter constraints -> larger gates -> more area
 # Looser constraints -> smaller gates -> less area
-ABC_CLOCK_MIN_PS = 700   # 700 ps = ~1.43 GHz (aggressive)
-ABC_CLOCK_MAX_PS = 10000  # 10000 ps = 100 MHz (conservative)
+ABC_CLOCK_MIN_PS = 350  # 350 ps = ~2.86 GHz (aggressive)
+ABC_CLOCK_MAX_PS = 1250  # 1250 ps = 800 MHz (conservative)
 
 # Fixed design parameters
 INPUT_WIDTH = 8  # 8-bit inputs
-OUTPUT_WIDTH = 16  # Fixed 16-bit output (may overflow for large n_lanes)
+OUTPUT_WIDTH = 32  # Fixed 16-bit output (may overflow for large n_lanes)
 
 
 # ============================================================================
@@ -155,43 +171,73 @@ def calc_area(ppa_metrics: Dict[str, float]) -> float:
     Returns:
         Cell area in um^2
     """
-    return ppa_metrics.get("cell_area", 1e9)
+    return ppa_metrics.get("cell_area", WORST_AREA)
 
 
-def check_constraints(ppa_metrics: Dict[str, float]) -> bool:
-    """Check if design meets constraints.
-
-    All designs must meet timing (slack >= 0). We also reject builds
-    with obviously bad synthesis results.
+def get_slack(ppa_metrics: Dict[str, float]) -> float:
+    """Extract timing slack from PPA metrics.
 
     Args:
         ppa_metrics: PPA metrics from results.tcl
 
     Returns:
-        True if design is valid
+        Slack value in picoseconds:
+        - Positive: timing met (has setup margin)
+        - Zero: timing exactly met
+        - Negative: timing violated
     """
-    # Reject if area is unreasonably large (likely synthesis error)
-    area = ppa_metrics.get("cell_area", 1e9)
-    if area >= 1e8:  # 100 mm^2 is unreasonably large for this design
-        return False
+    return ppa_metrics.get("slack", WORST_SLACK)
 
-    # Reject if effective frequency is unreasonably low
-    # This indicates severe synthesis problems
+
+def calc_constraint_violation(ppa_metrics: Dict[str, float]) -> float:
+    """Calculate unified constraint violation for Optuna optimization.
+
+    This function combines all design constraints into a single continuous
+    metric. It checks hard constraints (area, frequency, power) first, then
+    returns timing slack for gradient information.
+
+    Constraint checks:
+        1. Area < 100 mm² (hard constraint)
+        2. Effective frequency > 1 MHz (hard constraint)
+        3. Power < 1W (hard constraint)
+        4. Timing slack >= 0 (soft constraint with gradient)
+
+    Args:
+        ppa_metrics: PPA metrics from results.tcl
+
+    Returns:
+        Constraint violation value:
+        - Negative: all constraints satisfied (value = -slack, more negative = more margin)
+        - Zero: timing exactly met, other constraints satisfied
+        - Positive: one or more constraints violated
+            - Large positive (SEVERE_VIOLATION): hard constraint (area/freq/power) violated
+            - Small positive: only timing violated (value = -slack)
+    """
+    # Check hard constraints first
+    # If any hard constraint fails, return large positive value
+
+    # 1. Area constraint
+    area = calc_area(ppa_metrics)
+    if area >= 1e8:  # 100 mm^2 is unreasonably large
+        return SEVERE_VIOLATION  # Severe violation
+
+    # 2. Frequency constraint
     effective_freq = ppa_metrics.get("effective_frequency_ghz", 0.0)
     if effective_freq <= 0.001:  # < 1 MHz is unreasonably low
-        return False
+        return SEVERE_VIOLATION  # Severe violation
 
-    # Reject if power is unreasonably high (likely error)
+    # 3. Power constraint
     power = ppa_metrics.get("estimated_power_uw", 0.0)
-    if power >= 1e9:  # > 1W is unreasonable for this design
-        return False
+    if power >= 1e9:  # > 1W is unreasonable
+        return SEVERE_VIOLATION  # Severe violation
 
-    # All designs must meet timing (slack >= 0)
-    slack = ppa_metrics.get("slack", -1e9)
-    if slack < 0:
-        return False
-
-    return True
+    # All hard constraints passed
+    # Return -slack for continuous gradient information:
+    # - If slack > 0 (timing met): returns negative value (satisfied)
+    # - If slack = 0 (timing boundary): returns 0
+    # - If slack < 0 (timing violated): returns positive value (violated)
+    slack = get_slack(ppa_metrics)
+    return -slack
 
 
 # ============================================================================

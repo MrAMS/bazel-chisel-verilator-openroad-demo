@@ -9,7 +9,13 @@ import os
 import subprocess
 from typing import Dict, Any
 
-from dse_config import DSEConfig
+from dse_config import (
+    DSEConfig,
+    WORST_AREA,
+    WORST_PERFORMANCE,
+    WORST_SLACK,
+    SEVERE_VIOLATION,
+)
 
 
 def find_workspace_root() -> str:
@@ -91,9 +97,10 @@ def build_design(
         Dictionary containing:
             - failed: bool - Whether build failed
             - error: str - Error type if failed
-            - meets_constraints: bool - Whether design meets constraints
             - area: float - Area metric
             - performance: float - Performance metric
+            - slack: float - Timing slack in picoseconds
+            - constraint_violation: float - Unified constraint violation metric (<=0 OK, >0 violated)
             - ppa_metrics: Dict[str, float] - Raw PPA metrics
     """
     # Print trial parameters
@@ -111,12 +118,13 @@ def build_design(
     bazel_opts = config.get_bazel_opts(params)
 
     # Construct full Bazel command
+    # Build the PPA target - Bazel will automatically build all dependencies
+    # (e.g., synthesis, CTS stages) as defined in the BUILD file
     cmd = [
         "bazel",
         "build",
         *bazel_opts,
-        config.bazel_target,
-        config.ppa_target,
+        config.target,
     ]
 
     print(f"Command: {' '.join(cmd)}")
@@ -138,9 +146,10 @@ def build_design(
         return {
             "failed": True,
             "error": "timeout",
-            "meets_constraints": False,
-            "area": 1e9,
-            "performance": 0.0,
+            "area": WORST_AREA,
+            "performance": WORST_PERFORMANCE,
+            "slack": WORST_SLACK,
+            "constraint_violation": SEVERE_VIOLATION,
             "ppa_metrics": {}
         }
 
@@ -152,9 +161,10 @@ def build_design(
         return {
             "failed": True,
             "error": "build_failed",
-            "meets_constraints": False,
-            "area": 1e9,
-            "performance": 0.0,
+            "area": WORST_AREA,
+            "performance": WORST_PERFORMANCE,
+            "slack": WORST_SLACK,
+            "constraint_violation": SEVERE_VIOLATION,
             "ppa_metrics": {}
         }
 
@@ -171,39 +181,40 @@ def build_design(
         return {
             "failed": True,
             "error": "ppa_parse_failed",
-            "meets_constraints": False,
-            "area": 1e9,
-            "performance": 0.0,
+            "area": WORST_AREA,
+            "performance": WORST_PERFORMANCE,
+            "slack": WORST_SLACK,
+            "constraint_violation": SEVERE_VIOLATION,
             "ppa_metrics": {}
         }
-
-    # Check constraints
-    try:
-        meets_constraints = config.check_constraints(ppa_metrics)
-    except Exception as e:
-        print(f"❌ Constraint check failed: {e}")
-        meets_constraints = False
 
     # Calculate derived metrics
     try:
         area = config.calc_area(ppa_metrics)
         performance = config.calc_performance(ppa_metrics, params)
+        slack = config.get_slack(ppa_metrics)
+        constraint_violation = config.calc_constraint_violation(ppa_metrics)
     except Exception as e:
         print(f"❌ Failed to calculate metrics: {e}")
         return {
             "failed": True,
             "error": "metric_calc_failed",
-            "meets_constraints": meets_constraints,
-            "area": 1e9,
-            "performance": 0.0,
+            "area": WORST_AREA,
+            "performance": WORST_PERFORMANCE,
+            "slack": WORST_SLACK,
+            "constraint_violation": SEVERE_VIOLATION,
             "ppa_metrics": ppa_metrics
         }
 
     # Print results summary
+    # Derive boolean constraint check from constraint_violation for display
+    meets_constraints = (constraint_violation <= 0)
     constraint_str = "✓" if meets_constraints else "✗"
     print(f"{constraint_str} Constraints: {'MET' if meets_constraints else 'VIOLATED'}")
     print(f"  Area: {area:.3f}")
     print(f"  Performance: {performance:.3f}")
+    print(f"  Slack: {slack:.3f} ps")
+    print(f"  Constraint Violation: {constraint_violation:.3f} ({'OK' if constraint_violation <= 0 else 'VIOLATED'})")
 
     # Print raw PPA metrics
     print("  Raw PPA metrics:")
@@ -215,8 +226,9 @@ def build_design(
 
     return {
         "failed": False,
-        "meets_constraints": meets_constraints,
         "area": area,
         "performance": performance,
+        "slack": slack,
+        "constraint_violation": constraint_violation,
         "ppa_metrics": ppa_metrics,
     }

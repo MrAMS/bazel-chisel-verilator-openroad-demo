@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, os.path.dirname(__file__))
 
 import simd_dse_config
-from dse_config import DSEConfig
+from dse_config import DSEConfig, WORST_AREA
 from dse_runner import run_dse
 
 
@@ -34,8 +34,7 @@ def create_simd_dse_config() -> DSEConfig:
     return DSEConfig(
         # Design identification
         design_name="SimdDotProduct",
-        bazel_target="//eda/SimdDotProduct:SimdDotProduct_cts",
-        ppa_target="//eda/SimdDotProduct:SimdDotProduct_ppa",
+        target="//eda/SimdDotProduct:SimdDotProduct_ppa",
         # Parameter space
         suggest_params=simd_dse_config.suggest_params,
         get_env_vars=simd_dse_config.get_env_vars,
@@ -43,7 +42,8 @@ def create_simd_dse_config() -> DSEConfig:
         # Metrics calculation
         calc_performance=simd_dse_config.calc_performance,
         calc_area=simd_dse_config.calc_area,
-        check_constraints=simd_dse_config.check_constraints,
+        get_slack=simd_dse_config.get_slack,
+        calc_constraint_violation=simd_dse_config.calc_constraint_violation,
         # Display labels
         performance_label=simd_dse_config.PERFORMANCE_LABEL,
         area_label=simd_dse_config.AREA_LABEL,
@@ -177,7 +177,7 @@ Output:
             print(f"\n✓ Found {len(study.best_trials)} Pareto optimal solutions")
             print(f"\nBest area solution:")
             best_area_trial = min(
-                study.best_trials, key=lambda t: t.user_attrs.get("area", 1e9)
+                study.best_trials, key=lambda t: t.user_attrs.get("area", WORST_AREA)
             )
             params = best_area_trial.user_attrs.get("params", {})
             print(f"  n_lanes = {params.get('n_lanes')}")

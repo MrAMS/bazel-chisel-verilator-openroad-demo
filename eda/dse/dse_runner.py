@@ -11,7 +11,7 @@ from typing import Optional
 
 import optuna
 
-from dse_config import DSEConfig
+from dse_config import DSEConfig, SEVERE_VIOLATION
 from bazel_builder import find_workspace_root
 from optimization import create_study, objective_function
 from visualization import generate_visualizations, generate_html_dashboard
@@ -93,7 +93,8 @@ def save_text_results(study: optuna.Study, config: DSEConfig, output_dir: str):
         for trial in study.trials:
             if trial.state == optuna.trial.TrialState.COMPLETE:
                 failed = trial.user_attrs.get("failed", False)
-                meets_constraints = trial.user_attrs.get("meets_constraints", False)
+                constraint_violation = trial.user_attrs.get("constraint_violation", SEVERE_VIOLATION)
+                meets_constraints = (constraint_violation <= 0)
 
                 if not failed and meets_constraints:
                     params = trial.user_attrs.get("params", {})
