@@ -50,16 +50,23 @@ set power_file [open power_report.txt r]
 set power_content [read $power_file]
 close $power_file
 
-# Parse power from report (line 10, last column)
+# Parse power from report
+# Look for the "Total" line which contains the total power
+set power_found 0
 set power_lines [split $power_content "\n"]
-if {[llength $power_lines] > 9} {
-    set power_line [lindex $power_lines 9]
-    if {[regexp {(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)} $power_line -> _ _ _ _ power]} {
-        puts $f "estimated_power_uw: $power"
-    } else {
-        puts $f "estimated_power_uw: 0"
+foreach line $power_lines {
+    # Match lines like: "Total                    1.23e-03  ..."
+    if {[regexp {^\s*Total\s+(\S+)} $line -> power_value]} {
+        # Convert scientific notation to microwatts
+        # Power is typically in Watts, convert to uW (multiply by 1e6)
+        set power_w [expr {double($power_value)}]
+        set power_uw [expr {$power_w * 1e6}]
+        puts $f "estimated_power_uw: $power_uw"
+        set power_found 1
+        break
     }
-} else {
+}
+if {!$power_found} {
     puts $f "estimated_power_uw: 0"
 }
 

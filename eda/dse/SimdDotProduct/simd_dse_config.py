@@ -46,7 +46,7 @@ ABC_CLOCK_MAX_PS = 1250  # 1250 ps = 800 MHz (conservative)
 
 # Fixed design parameters
 INPUT_WIDTH = 8  # 8-bit inputs
-OUTPUT_WIDTH = 32  # Fixed 16-bit output (may overflow for large n_lanes)
+OUTPUT_WIDTH = 32  # 32-bit output (accumulator width)
 
 
 # ============================================================================
