@@ -27,10 +27,12 @@ def create_simd_dse_config() -> DSEConfig:
         # Design identification
         design_name="SimdDotProduct",
         target="//eda/SimdDotProduct:SimdDotProduct_ppa",
+        parallel_target_package="//eda/dse/SimdDotProduct",
         # Parameter space
         suggest_params=simd_dse_config.suggest_params,
         get_env_vars=simd_dse_config.get_env_vars,
         get_bazel_opts=simd_dse_config.get_bazel_opts,
+        get_parallel_bazel_opts=simd_dse_config.get_parallel_bazel_opts,
         # Metrics calculation
         calc_performance=simd_dse_config.calc_performance,
         calc_area=simd_dse_config.calc_area,
@@ -109,20 +111,15 @@ Output:
         help="Optuna storage URL (e.g., sqlite:///study.db) for persistence",
     )
 
-    # Quick test mode
+    # Parallel execution
     parser.add_argument(
-        "--quick-test",
-        action="store_true",
-        help="Quick test mode: 5 trials with limited parameter space",
+        "--parallel-trials",
+        type=int,
+        default=1,
+        help="Number of trials to run in parallel (default: 1 for sequential)",
     )
 
     args = parser.parse_args()
-
-    # Quick test mode overrides
-    if args.quick_test:
-        print("⚡ Quick test mode enabled")
-        args.n_trials = 5
-        simd_dse_config.ABC_CLOCK_MAX_PS = 5000  # Limit to 5ns = 200 MHz
 
     # Create configuration
     config = create_simd_dse_config()
@@ -133,6 +130,7 @@ Output:
     print("=" * 70)
     print(f"Design: {config.design_name}")
     print(f"Trials: {args.n_trials}")
+    print(f"Parallel trials: {args.parallel_trials}")
     print(f"Seed: {args.seed}")
     print(f"Output: {args.output_dir}")
     if args.storage:
@@ -158,6 +156,7 @@ Output:
             output_dir=args.output_dir,
             study_name=args.study_name,
             storage=args.storage,
+            parallel_trials=args.parallel_trials,
         )
 
         print("\n" + "=" * 70)

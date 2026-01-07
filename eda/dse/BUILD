@@ -7,7 +7,7 @@ py_library(
     visibility = ["//visibility:public"],
 )
 
-# Bazel builder and PPA parser
+# Bazel builder and PPA parser (unified single + parallel)
 py_library(
     name = "bazel_builder",
     srcs = ["bazel_builder.py"],

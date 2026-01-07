@@ -11,6 +11,10 @@ exports_files(
 target_name = "SimdDotProduct"
 top_module = "SimdDotProduct"
 
+# ============================================================================
+# Base Design Flow (single design, no parallelism)
+# ============================================================================
+
 orfs_flow(
     name = target_name,
     arguments = {

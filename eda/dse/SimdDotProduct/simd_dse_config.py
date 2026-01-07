@@ -120,6 +120,46 @@ def get_bazel_opts(params: dict[str, str | int | float | bool]) -> list[str]:
     ]
 
 
+def get_parallel_bazel_opts(
+    params: dict[str, str | int | float | bool],
+    variant_index: int,
+    package: str,
+    batch_id: int = 0,
+) -> list[str]:
+    """Generate Bazel build options for parallel builds.
+
+    This function converts global options to per-variant options for parallel builds.
+    Each variant gets its own set of string_flag values.
+
+    The parallel build targets and string_flags are located in //eda/dse/SimdDotProduct,
+    so we always use that package regardless of the base target location.
+
+    Args:
+        params: Trial parameters
+        variant_index: Index of the variant (0, 1, 2, ...)
+        package: Bazel package name (ignored - always uses //eda/dse/SimdDotProduct)
+        batch_id: Batch identifier for cache invalidation (default: 0)
+
+    Returns:
+        List of Bazel command-line options for this specific variant
+    """
+    # Construct chisel_app_opts for RTL generation
+    chisel_opts = (
+        f"--nLanes={params['n_lanes']} "
+        f"--inputWidth={params['input_width']} "
+        f"--outputWidth={params['output_width']}"
+    )
+
+    # Always use DSE package location for parallel builds
+    dse_package = "//eda/dse/SimdDotProduct"
+
+    return [
+        f"--{dse_package}:chisel_opts_{variant_index}={chisel_opts}",
+        f"--{dse_package}:abc_clock_ps_{variant_index}={params['abc_clock_ps']}",
+        f"--{dse_package}:batch_id_{variant_index}={batch_id}",
+    ]
+
+
 def calc_performance(
     ppa_metrics: dict[str, float], params: dict[str, str | int | float | bool]
 ) -> float:

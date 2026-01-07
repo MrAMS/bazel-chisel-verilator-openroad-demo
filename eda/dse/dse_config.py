@@ -46,8 +46,9 @@ class DSEConfig:
     target: str
     """Bazel target for building and extracting PPA metrics.
 
-    This should be a target that produces PPA metrics (typically *_ppa target).
-    Bazel will automatically build all dependencies (e.g., synthesis, CTS stages).
+    This should be a target that produces PPA metrics (typically *_ppa target)
+    for single-design builds. Bazel will automatically build all dependencies
+    (e.g., synthesis, CTS stages).
 
     Example: '//eda/SimdDotProduct:SimdDotProduct_ppa'
     """
@@ -167,4 +168,34 @@ class DSEConfig:
 
     Maps parameter names to human-readable labels for visualization.
     Example: {'n_lanes': 'Number of SIMD Lanes', 'target_clock_ns': 'Clock Period (ns)'}
+    """
+
+    # ========================================================================
+    # Optional: Parallel Build Support
+    # ========================================================================
+
+    get_parallel_bazel_opts: Callable[[Dict[str, Any], int, str], List[str]] | None = None
+    """Optional function that converts trial params to parallel Bazel build options.
+
+    This function is used for parallel builds where each variant needs its own
+    set of parameters. If not provided, parallel builds will raise an error.
+
+    Args:
+        params: Trial parameters
+        variant_index: Index of the variant (0, 1, 2, ...)
+        package: Bazel package name (e.g., "//eda/SimdDotProduct")
+
+    Returns:
+        List of Bazel command-line options for this specific variant
+        Example: ["--//eda/SimdDotProduct:chisel_opts_0=...", "--//eda/SimdDotProduct:abc_clock_ps_0=..."]
+    """
+
+    parallel_target_package: str | None = None
+    """Optional package location for parallel build targets.
+
+    If specified, parallel builds will use targets from this package instead of
+    extracting the package from the base target. This allows separating DSE
+    infrastructure (parallel variants) from the base design.
+
+    Example: '//eda/dse/SimdDotProduct' (while target is '//eda/SimdDotProduct:SimdDotProduct_ppa')
     """

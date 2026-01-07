@@ -6,7 +6,7 @@ This module provides rules for generating SystemVerilog from Chisel:
 """
 
 load("@rules_verilator//verilog:providers.bzl", "make_dag_entry", "make_verilog_info")
-load("//rules:settings.bzl", "BuildSettingInfo")
+load("@bazel_skylib//rules:common_settings.bzl", "BuildSettingInfo")
 
 def _chisel_verilog_impl(ctx):
     """Common implementation for Chisel Verilog generation.
@@ -21,12 +21,29 @@ def _chisel_verilog_impl(ctx):
     # Add application custom options (e.g., --dataBits=4)
     args.add_all([ctx.expand_location(opt, ctx.attr.data) for opt in ctx.attr.app_opts])
 
-    if hasattr(ctx.attr, "_chisel_app_opts"):
-        raw_cli_opts = ctx.attr._chisel_app_opts[BuildSettingInfo].value
+    # Check for chisel_app_opts (public attribute for custom rules)
+    # or _chisel_app_opts (private attribute for default rules)
+    chisel_app_opts_attr = None
+    if hasattr(ctx.attr, "chisel_app_opts") and ctx.attr.chisel_app_opts:
+        chisel_app_opts_attr = ctx.attr.chisel_app_opts
+    elif hasattr(ctx.attr, "_chisel_app_opts"):
+        chisel_app_opts_attr = ctx.attr._chisel_app_opts
+
+    if chisel_app_opts_attr:
+        raw_cli_opts = chisel_app_opts_attr[BuildSettingInfo].value
         if raw_cli_opts:
             cli_args_list = raw_cli_opts.split(" ")
             cli_args_list = [a for a in cli_args_list if a]
             args.add_all(cli_args_list)
+
+    # Check for batch_id (used for DSE cache invalidation)
+    # The batch_id value is not used in the command, but its presence in the
+    # action inputs forces Bazel to invalidate cache when it changes
+    batch_id_attr = None
+    if hasattr(ctx.attr, "batch_id") and ctx.attr.batch_id:
+        batch_id_attr = ctx.attr.batch_id
+        # We read the value to make Bazel track it as an input to the action
+        _ = batch_id_attr[BuildSettingInfo].value
 
     # Add first -- separator
     args.add("--")
@@ -111,7 +128,18 @@ chisel_verilog_directory = rule(
     implementation = lambda ctx: _chisel_verilog_impl(ctx),
     attrs = dict(
         chisel_verilog_attrs(),
-        _chisel_app_opts = attr.label(default = "//rules:chisel_app_opts"),
+        batch_id = attr.label(
+            default = None,
+            doc = "Optional label to string_flag containing batch_id for DSE cache invalidation",
+        ),
+        chisel_app_opts = attr.label(
+            default = None,
+            doc = "Optional label to string_flag containing custom chisel_app_opts (overrides default)",
+        ),
+        _chisel_app_opts = attr.label(
+            default = "//rules:chisel_app_opts",
+            doc = "Default chisel_app_opts (used if chisel_app_opts is not specified)",
+        ),
     ),
     doc = "Generates split SystemVerilog files from Chisel in a directory.",
 )

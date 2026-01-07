@@ -11,11 +11,76 @@ set f [open $::env(OUTPUT) w]
 # Basic design information
 puts $f "design_name: $::env(DESIGN_NAME)"
 
-# Cell area (um^2)
-set cell_area [sta::format_area [rsz::design_area] 0]
-puts $f "cell_area: $cell_area"
+# ============================================================================
+# Area Metrics - use OpenDB API for accurate area calculation
+# ============================================================================
+# Get database handle
+set db [::ord::get_db]
+set chip [$db getChip]
+set block [$chip getBlock]
 
-# Timing analysis - report worst setup slack
+# Get die area bbox
+set die_bbox [$block getDieArea]
+set die_width [expr {[$die_bbox xMax] - [$die_bbox xMin]}]
+set die_height [expr {[$die_bbox yMax] - [$die_bbox yMin]}]
+set die_area [expr {$die_width * $die_height}]
+set die_area_um2 [expr {$die_area / 1000000.0}]
+
+# Get core area bbox
+set core_bbox [$block getCoreArea]
+set core_width [expr {[$core_bbox xMax] - [$core_bbox xMin]}]
+set core_height [expr {[$core_bbox yMax] - [$core_bbox yMin]}]
+set core_area [expr {$core_width * $core_height}]
+set core_area_um2 [expr {$core_area / 1000000.0}]
+
+# Sum all instance areas (excluding blocks/macros)
+set total_cell_area 0
+foreach inst [$block getInsts] {
+    set master [$inst getMaster]
+    if {![$master isBlock]} {
+        set inst_width [$master getWidth]
+        set inst_height [$master getHeight]
+        set inst_area [expr {$inst_width * $inst_height}]
+        set total_cell_area [expr {$total_cell_area + $inst_area}]
+    }
+}
+# Convert from DBU^2 to um^2 (divide by 1e6 since DBU is in nanometers)
+set cell_area_um2 [expr {$total_cell_area / 1000000.0}]
+
+# Calculate utilization
+if {$core_area_um2 > 0} {
+    set utilization [expr {$cell_area_um2 / $core_area_um2 * 100.0}]
+} else {
+    set utilization 0.0
+}
+
+# Output area metrics
+puts $f "die_area: $die_area_um2"
+puts $f "core_area: $core_area_um2"
+puts $f "cell_area: $cell_area_um2"
+puts $f "utilization: $utilization"
+
+# ============================================================================
+# Cell Count Metrics
+# ============================================================================
+set num_cells 0
+set num_sequential 0
+foreach inst [$block getInsts] {
+    incr num_cells
+    set master [$inst getMaster]
+    if {[$master isSequential]} {
+        incr num_sequential
+    }
+}
+set num_nets [llength [$block getNets]]
+
+puts $f "num_cells: $num_cells"
+puts $f "num_sequential: $num_sequential"
+puts $f "num_nets: $num_nets"
+
+# ============================================================================
+# Timing Analysis
+# ============================================================================
 # Use report_worst_slack to get WNS (includes all clocks)
 set slack [sta::worst_slack -max]
 puts $f "slack: $slack"
@@ -69,10 +134,6 @@ foreach line $power_lines {
 if {!$power_found} {
     puts $f "estimated_power_uw: 0"
 }
-
-# Instance count
-set instance_count [llength [get_cells *]]
-puts $f "instances: $instance_count"
 
 close $f
 

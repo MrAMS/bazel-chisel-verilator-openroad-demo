@@ -14,6 +14,7 @@ def gen_rtl_target(target_name, emit_class, srcs, deps=[], app_opts=[]):
         main_class = emit_class,
         deps = final_deps,
         scalacopts = ["-Ytasty-reader"],
+        visibility = ["//visibility:public"],
         #tags = ["manual"], # speedup BSP
     )
 

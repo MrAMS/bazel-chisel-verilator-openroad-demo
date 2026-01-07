@@ -2,11 +2,13 @@
 """
 Bazel Builder and PPA Parser
 
-Handles building designs with Bazel and parsing PPA metrics.
+Unified builder that handles both single and parallel design builds.
+Single-design build is just a special case of parallel build with N=1.
 """
 
 import os
 import subprocess
+from typing import Any, Dict, List
 
 from .dse_config import (
     SEVERE_VIOLATION,
@@ -15,6 +17,26 @@ from .dse_config import (
     WORST_SLACK,
     DSEConfig,
 )
+
+
+def _create_failure_result(error_type: str) -> Dict[str, Any]:
+    """Create standardized failure result dictionary.
+
+    Args:
+        error_type: Type of failure (timeout, build_failed, ppa_parse_failed, etc.)
+
+    Returns:
+        Dictionary with failure status and worst-case metrics
+    """
+    return {
+        "failed": True,
+        "error": error_type,
+        "area": WORST_AREA,
+        "performance": WORST_PERFORMANCE,
+        "slack": WORST_SLACK,
+        "constraint_violation": SEVERE_VIOLATION,
+        "ppa_metrics": {},
+    }
 
 
 def find_workspace_root() -> str:
@@ -29,7 +51,7 @@ def find_workspace_root() -> str:
     return os.environ.get("BUILD_WORKSPACE_DIRECTORY", os.getcwd())
 
 
-def parse_ppa_metrics(ppa_file: str) -> dict[str, float]:
+def parse_ppa_metrics(ppa_file: str) -> Dict[str, float]:
     """Parse PPA metrics from results.tcl output file.
 
     The PPA file should contain lines in format:
@@ -70,65 +92,100 @@ def parse_ppa_metrics(ppa_file: str) -> dict[str, float]:
     return metrics
 
 
-def build_design(
+def build_designs(
     config: DSEConfig,
-    params: dict[str, str | int | float | bool],
+    params_list: List[Dict[str, Any]],
     workspace_root: str,
-    timeout: int = 600,
-) -> dict[str, str | int | float | bool | dict]:
-    """Build design with given parameters and extract PPA metrics.
+    timeout: int = 1200,
+    batch_id: int = 0,
+) -> List[Dict[str, Any]]:
+    """Build one or more design variants.
 
-    This function:
-    1. Constructs Bazel build command with design-specific options
-    2. Sets environment variables for parameterized constraints
-    3. Runs the build
-    4. Parses PPA metrics from output
-    5. Calculates area and performance metrics
-    6. Checks constraints
+    This is the unified builder that handles both single and parallel builds.
+    For single design: pass params_list with one element
+    For parallel builds: pass params_list with multiple elements
 
     Args:
         config: DSE configuration
-        params: Trial parameters (from suggest_params)
+        params_list: List of parameter dictionaries (one per design variant)
         workspace_root: Bazel workspace root directory
-        timeout: Build timeout in seconds (default: 600)
+        timeout: Build timeout in seconds (default: 1200)
+        batch_id: Batch identifier for cache busting (default: 0)
 
     Returns:
-        Dictionary containing:
+        List of result dictionaries, one per design variant.
+        Each dictionary contains:
             - failed: bool - Whether build failed
             - error: str - Error type if failed
             - area: float - Area metric
             - performance: float - Performance metric
             - slack: float - Timing slack in picoseconds
-            - constraint_violation: float - Unified constraint violation metric (<=0 OK, >0 violated)
+            - constraint_violation: float - Unified constraint violation metric
             - ppa_metrics: Dict[str, float] - Raw PPA metrics
     """
-    # Print trial parameters
-    param_str = ", ".join([f"{k}={v}" for k, v in params.items()])
+    n_designs = len(params_list)
+
     print(f"\n{'=' * 70}")
-    print(f"Trial Parameters: {param_str}")
+    print(f"Building {n_designs} design variant{'s' if n_designs > 1 else ''}")
+    print(f"Batch ID: {batch_id}")
     print(f"{'=' * 70}")
 
-    # Build environment with custom variables
+    # Print all parameter sets
+    for i, params in enumerate(params_list):
+        param_str = ", ".join([f"{k}={v}" for k, v in params.items()])
+        print(f"Variant {i}: {param_str}")
+
+    # Build environment (common for all variants)
     env = os.environ.copy()
-    env_vars = config.get_env_vars(params)
-    env.update(env_vars)
 
-    # Build Bazel command-line options
-    bazel_opts = config.get_bazel_opts(params)
+    # Set OpenROAD thread count to avoid thread contention in parallel builds
+    # Each OpenROAD instance will use at most (total_cpus / n_designs) threads
+    # This prevents the severe performance degradation observed when multiple
+    # OpenROAD instances compete for CPU resources
+    import os as os_module
+    total_cpus = os_module.cpu_count() or 1
+    threads_per_instance = max(1, total_cpus // n_designs)
+    env["OPENROAD_THREADS"] = str(threads_per_instance)
 
-    # Construct full Bazel command
-    # Build the PPA target - Bazel will automatically build all dependencies
-    # (e.g., synthesis, CTS stages) as defined in the BUILD file
-    cmd = [
-        "bazel",
-        "build",
-        *bazel_opts,
-        config.target,
-    ]
+    print(f"Setting OPENROAD_THREADS={threads_per_instance} ({n_designs} parallel builds on {total_cpus} CPUs)")
 
-    print(f"Command: {' '.join(cmd)}")
-    if env_vars:
-        print(f"Environment: {env_vars}")
+    # Construct Bazel command (unified for single and parallel builds)
+    # Use --jobs=auto to maximize CPU utilization across all variants
+    cmd = ["bazel", "build", "--keep_going", "--jobs=auto"]
+
+    cmd.append(f"--profile=trace-{batch_id}.json.gz")
+
+    # Determine package for parallel targets
+    package = config.parallel_target_package
+
+    # Extract name_base from target or design_name
+    target_base = config.target.rsplit(":", 1)
+    if len(target_base) == 2:
+        _, name = target_base
+        name_base = name.replace("_ppa", "")
+    else:
+        name_base = config.design_name
+
+    # Check if design provides parallel build options
+    if config.get_parallel_bazel_opts is None:
+        raise ValueError(
+            f"Design {config.design_name} does not support parallel builds. "
+            "Please implement get_parallel_bazel_opts() in the DSE config."
+        )
+
+    # Build command with per-variant options
+    for i, params in enumerate(params_list):
+        # Get per-variant options from design-specific function
+        # Pass batch_id for cache invalidation via string_flag
+        variant_opts = config.get_parallel_bazel_opts(params, i, package, batch_id)
+        cmd.extend(variant_opts)
+
+    # Add all variant targets at the end
+    for i in range(n_designs):
+        variant_target = f"{package}:{name_base}_{i}_ppa"
+        cmd.append(variant_target)
+
+    print(f"\nCommand: {' '.join(cmd)}")
 
     # Run build with timeout
     try:
@@ -142,94 +199,71 @@ def build_design(
         )
     except subprocess.TimeoutExpired:
         print(f"❌ Build timed out after {timeout}s")
-        return {
-            "failed": True,
-            "error": "timeout",
-            "area": WORST_AREA,
-            "performance": WORST_PERFORMANCE,
-            "slack": WORST_SLACK,
-            "constraint_violation": SEVERE_VIOLATION,
-            "ppa_metrics": {},
-        }
+        return [_create_failure_result("timeout") for _ in range(n_designs)]
 
-    # Check build status
+    # Check if any builds succeeded (--keep_going allows partial success)
     if result.returncode != 0:
-        print(f"❌ Build failed (return code {result.returncode})")
+        print(f"⚠️  Some builds failed (return code {result.returncode})")
         # Print last 1000 chars of stderr for debugging
-        print(f"Error output:\n{result.stderr[-1000:]}")
-        return {
-            "failed": True,
-            "error": "build_failed",
-            "area": WORST_AREA,
-            "performance": WORST_PERFORMANCE,
-            "slack": WORST_SLACK,
-            "constraint_violation": SEVERE_VIOLATION,
-            "ppa_metrics": {},
-        }
+        if result.stderr:
+            print(f"Error output:\n{result.stderr[-1000:]}")
 
-    # Parse PPA metrics
-    ppa_file = os.path.join(
-        workspace_root,
-        f"bazel-bin/eda/{config.design_name}/{config.design_name}_ppa.txt",
-    )
+    # Parse results for each variant
+    results = []
+    for i, params in enumerate(params_list):
+        # Construct PPA file path for this variant
+        # Extract package path from parallel_target_package (e.g., "//eda/dse/SimdDotProduct" -> "eda/dse/SimdDotProduct")
+        package_path = config.parallel_target_package.lstrip("//")
+        ppa_file = os.path.join(
+            workspace_root,
+            f"bazel-bin/{package_path}/{config.design_name}_{i}_ppa.txt",
+        )
 
-    try:
-        ppa_metrics = parse_ppa_metrics(ppa_file)
-    except Exception as e:
-        print(f"❌ Failed to parse PPA metrics: {e}")
-        return {
-            "failed": True,
-            "error": "ppa_parse_failed",
-            "area": WORST_AREA,
-            "performance": WORST_PERFORMANCE,
-            "slack": WORST_SLACK,
-            "constraint_violation": SEVERE_VIOLATION,
-            "ppa_metrics": {},
-        }
+        # Check if this variant succeeded
+        if not os.path.exists(ppa_file):
+            print(f"❌ Variant {i} failed (PPA file not found)")
+            results.append(_create_failure_result("build_failed"))
+            continue
 
-    # Calculate derived metrics
-    try:
-        area = config.calc_area(ppa_metrics)
-        performance = config.calc_performance(ppa_metrics, params)
-        slack = config.get_slack(ppa_metrics)
-        constraint_violation = config.calc_constraint_violation(ppa_metrics)
-    except Exception as e:
-        print(f"❌ Failed to calculate metrics: {e}")
-        return {
-            "failed": True,
-            "error": "metric_calc_failed",
-            "area": WORST_AREA,
-            "performance": WORST_PERFORMANCE,
-            "slack": WORST_SLACK,
-            "constraint_violation": SEVERE_VIOLATION,
-            "ppa_metrics": ppa_metrics,
-        }
+        # Parse PPA metrics
+        try:
+            ppa_metrics = parse_ppa_metrics(ppa_file)
+        except Exception as e:
+            print(f"❌ Variant {i} failed to parse PPA metrics: {e}")
+            results.append(_create_failure_result("ppa_parse_failed"))
+            continue
 
-    # Print results summary
-    # Derive boolean constraint check from constraint_violation for display
-    meets_constraints = constraint_violation <= 0
-    constraint_str = "✓" if meets_constraints else "✗"
-    print(f"{constraint_str} Constraints: {'MET' if meets_constraints else 'VIOLATED'}")
-    print(f"  Area: {area:.3f}")
-    print(f"  Performance: {performance:.3f}")
-    print(f"  Slack: {slack:.3f} ps")
-    print(
-        f"  Constraint Violation: {constraint_violation:.3f} ({'OK' if constraint_violation <= 0 else 'VIOLATED'})"
-    )
+        # Calculate derived metrics
+        try:
+            area = config.calc_area(ppa_metrics)
+            performance = config.calc_performance(ppa_metrics, params)
+            slack = config.get_slack(ppa_metrics)
+            constraint_violation = config.calc_constraint_violation(ppa_metrics)
+        except Exception as e:
+            print(f"❌ Variant {i} failed to calculate metrics: {e}")
+            results.append(_create_failure_result("metric_calc_failed"))
+            continue
 
-    # Print raw PPA metrics
-    print("  Raw PPA metrics:")
-    for key, value in ppa_metrics.items():
-        if isinstance(value, float):
-            print(f"    {key}: {value:.3f}")
-        else:
-            print(f"    {key}: {value}")
+        # Success!
+        meets_constraints = constraint_violation <= 0
+        constraint_str = "✓" if meets_constraints else "✗"
 
-    return {
-        "failed": False,
-        "area": area,
-        "performance": performance,
-        "slack": slack,
-        "constraint_violation": constraint_violation,
-        "ppa_metrics": ppa_metrics,
-    }
+        print(
+            f"\n{constraint_str} Variant {i}: {'MET' if meets_constraints else 'VIOLATED'}"
+        )
+        print(f"  Area: {area:.3f}")
+        print(f"  Performance: {performance:.3f}")
+        print(f"  Slack: {slack:.3f} ps")
+
+        results.append(
+            {
+                "failed": False,
+                "area": area,
+                "performance": performance,
+                "slack": slack,
+                "constraint_violation": constraint_violation,
+                "ppa_metrics": ppa_metrics,
+            }
+        )
+
+    return results

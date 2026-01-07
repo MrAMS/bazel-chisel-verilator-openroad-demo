@@ -15,7 +15,7 @@ bazel_dep(name = "rules_verilator", version = "0.1.0")
 bazel_dep(name = "verilator", version = "5.036.bcr.3")
 bazel_dep(name = "googletest", version = "1.17.0")
 bazel_dep(name = "rules_scala", version = "7.1.5")
-bazel_dep(name = "bazel_skylib", version = "1.8.2")
+bazel_dep(name = "bazel_skylib", version = "1.9.0")
 
 # Configure Scala version to match bazel-orfs
 scala_config = use_extension("@rules_scala//scala/extensions:config.bzl", "scala_config")
@@ -71,8 +71,8 @@ use_repo(pip, "pip")
 bazel_dep(name = "bazel-orfs")
 git_override(
     module_name = "bazel-orfs",
-    commit = "a83f7d88266367ea3c2e0787d72da0be515d0673",
-    remote = "https://github.com/The-OpenROAD-Project/bazel-orfs.git",
+    commit = "456cdf3edf74578f8eac1d26b4941377ce9501a1",
+    remote = "https://github.com/MrAMS/bazel-orfs.git",
 )
 
 orfs = use_extension("@bazel-orfs//:extension.bzl", "orfs_repositories")

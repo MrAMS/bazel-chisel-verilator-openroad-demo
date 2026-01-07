@@ -3,11 +3,13 @@
 Optuna Optimization Functions
 
 Defines objective functions and constraint functions for Optuna-based DSE.
+Supports both sequential and parallel execution modes.
 """
 
+from typing import List
 import optuna
 
-from .bazel_builder import build_design
+from .bazel_builder import build_designs
 from .dse_config import (
     FAILED_BUILD_PENALTY,
     SEVERE_VIOLATION,
@@ -18,50 +20,28 @@ from .dse_config import (
 )
 
 
-def objective_function(
-    trial: optuna.Trial, config: DSEConfig, workspace_root: str
+def _store_trial_results(
+    trial: optuna.Trial, params: dict, result: dict
 ) -> tuple[float, float]:
-    """Optuna objective function for multi-objective optimization.
-
-    This function is called by Optuna for each trial to evaluate the design.
-
-    Optimization objectives:
-        1. Minimize area
-        2. Maximize performance (converted to minimize -performance)
-
-    The function:
-    1. Suggests parameters using design-specific suggest_params
-    2. Builds the design and extracts PPA metrics
-    3. Stores results in trial user_attrs for later analysis
-    4. Returns objectives for Optuna to optimize
+    """Store build results in trial user attributes and return objectives.
 
     Args:
         trial: Optuna Trial object
-        config: DSE configuration
-        workspace_root: Bazel workspace root directory
+        params: Trial parameters
+        result: Build result dictionary from build_design(s)
 
     Returns:
-        Tuple of (area, -performance) for minimization
-        Both values are to be minimized by Optuna
+        Tuple of (area, -performance) objectives for minimization
     """
-    # Suggest parameters using design-specific function
-    params = config.suggest_params(trial)
-
-    # Build design and evaluate
-    result = build_design(config, params, workspace_root)
-
-    # Store all results in trial attributes for later analysis
     trial.set_user_attr("failed", result["failed"])
     trial.set_user_attr("params", params)
 
-    # Handle build failures
     if result["failed"]:
-        # Return worst-case values to discourage failed builds
         trial.set_user_attr("area", WORST_AREA)
         trial.set_user_attr("performance", WORST_PERFORMANCE)
         trial.set_user_attr("slack", WORST_SLACK)
         trial.set_user_attr("constraint_violation", SEVERE_VIOLATION)
-        return (WORST_AREA, -WORST_PERFORMANCE)  # Both objectives are minimized
+        return (WORST_AREA, -WORST_PERFORMANCE)
 
     # Store successful build results
     trial.set_user_attr("area", result["area"])
@@ -69,18 +49,58 @@ def objective_function(
     trial.set_user_attr("slack", result["slack"])
     trial.set_user_attr("constraint_violation", result["constraint_violation"])
 
-    assert isinstance(result["ppa_metrics"], dict)  # make pyright happy
-
     # Store raw PPA metrics with 'ppa_' prefix
+    assert isinstance(result["ppa_metrics"], dict)  # make pyright happy
     for key, value in result["ppa_metrics"].items():
         trial.set_user_attr(f"ppa_{key}", value)
 
+    # Return objectives: minimize area, minimize -performance (i.e., maximize performance)
     assert not isinstance(result["area"], dict)  # make pyright happy
     assert not isinstance(result["performance"], dict)  # make pyright happy
-    # Return objectives for Optuna
-    # Objective 1: Minimize area
-    # Objective 2: Maximize performance -> Minimize -performance
     return (float(result["area"]), -float(result["performance"]))
+
+
+def objective_function_parallel(
+    study: optuna.Study,
+    trials: List[optuna.Trial],
+    config: DSEConfig,
+    workspace_root: str,
+    batch_id: int = 0,
+) -> None:
+    """Optuna objective function for multi-objective optimization.
+
+    Builds and evaluates one or more trials. When len(trials) == 1, this is
+    sequential execution; when len(trials) > 1, trials are built in parallel
+    using a single Bazel invocation.
+
+    The function:
+    1. Suggests parameters for all trials using design-specific suggest_params
+    2. Builds all designs (in parallel if multiple) and extracts PPA metrics
+    3. Stores results in trial user_attrs for later analysis
+    4. Reports results back to Optuna using study.tell()
+
+    Args:
+        study: Optuna Study object
+        trials: List of Optuna Trial objects to evaluate (can be single trial)
+        config: DSE configuration
+        workspace_root: Bazel workspace root directory
+        batch_id: Batch identifier for cache busting (default: 0)
+    """
+    # Suggest parameters for all trials
+    # IMPORTANT: Each trial must suggest its own parameters independently
+    # to avoid parameter collision in parallel execution
+    params_list = []
+    for trial in trials:
+        params = config.suggest_params(trial)
+        params_list.append(params)
+
+    # Build all designs in parallel
+    results = build_designs(config, params_list, workspace_root, batch_id=batch_id)
+
+    # Process results and report back to Optuna
+    for trial, params, result in zip(trials, params_list, results):
+        objectives = _store_trial_results(trial, params, result)
+        study.tell(trial, objectives)
 
 
 def constraint_function(trial: optuna.trial.FrozenTrial) -> tuple[float]:

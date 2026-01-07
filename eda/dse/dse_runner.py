@@ -7,12 +7,14 @@ design space exploration process.
 """
 
 import os
+import time
 
 import optuna
+from tqdm import tqdm
 
 from .bazel_builder import find_workspace_root
 from .dse_config import SEVERE_VIOLATION, DSEConfig
-from .optimization import create_study, objective_function
+from .optimization import create_study, objective_function_parallel
 from .visualization import generate_html_dashboard, generate_visualizations
 
 
@@ -118,13 +120,14 @@ def run_dse(
     output_dir: str,
     study_name: str,
     storage: str | None,
+    parallel_trials: int = 1,
 ) -> optuna.Study:
     """Run complete design space exploration.
 
     This is the main entry point for running DSE. It:
     1. Creates output directory
     2. Sets up Optuna study
-    3. Runs optimization trials
+    3. Runs optimization trials (sequential or parallel)
     4. Generates visualizations
     5. Saves results
 
@@ -135,16 +138,25 @@ def run_dse(
         output_dir: Output directory for results
         study_name: Optuna study name (for resuming)
         storage: Optuna storage URL for persistence (e.g., 'sqlite:///study.db')
+        parallel_trials: Number of trials to run in parallel (default: 1 for sequential)
 
     Returns:
         Completed Optuna Study object
 
     Example:
         >>> config = create_my_dse_config()
+        >>> # Sequential execution
         >>> study = run_dse(
         ...     config=config,
         ...     n_trials=50,
         ...     output_dir="results/my_design"
+        ... )
+        >>> # Parallel execution (8 trials at a time)
+        >>> study = run_dse(
+        ...     config=config,
+        ...     n_trials=50,
+        ...     output_dir="results/my_design",
+        ...     parallel_trials=8
         ... )
     """
     # Get workspace root
@@ -161,6 +173,7 @@ def run_dse(
     print("=" * 70)
     print(f"Workspace root: {workspace_root}")
     print(f"Trials: {n_trials}")
+    print(f"Parallel trials: {parallel_trials}")
     print(f"Seed: {seed}")
     print(f"Output directory: {output_dir}")
     if storage:
@@ -175,13 +188,36 @@ def run_dse(
         seed=seed,
     )
 
-    # Run optimization
+    # Run optimization in batches
     print("\nStarting optimization...")
-    study.optimize(
-        lambda trial: objective_function(trial, config, workspace_root),
-        n_trials=n_trials,
-        show_progress_bar=True,
-    )
+    print(f"Running with batch size: {parallel_trials}")
+
+    start_time = time.time()
+
+    # Create progress bar
+    with tqdm(total=n_trials, desc="DSE Progress", unit="trial") as pbar:
+        for batch_idx, batch_start in enumerate(range(0, n_trials, parallel_trials)):
+            batch_size = min(parallel_trials, n_trials - batch_start)
+
+            # Ask Optuna for one or more trials
+            trials = [study.ask() for _ in range(batch_size)]
+
+            # Build and evaluate (single trial or parallel)
+            objective_function_parallel(study, trials, config, workspace_root, batch_idx)
+
+            # Update progress bar
+            pbar.update(batch_size)
+
+            # Update elapsed time in progress bar
+            elapsed = time.time() - start_time
+            pbar.set_postfix({
+                "elapsed": f"{elapsed:.1f}s",
+                "batch": f"{batch_idx + 1}"
+            })
+
+    # Calculate total time
+    total_time = time.time() - start_time
+    print(f"\nTotal optimization time: {total_time:.1f}s ({total_time/60:.1f}min)")
 
     # Print results summary
     print_results_summary(study, config)
