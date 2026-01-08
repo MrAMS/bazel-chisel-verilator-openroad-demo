@@ -1,6 +1,0 @@
-260107 06:21:20.371:I 3 [com.google.devtools.build.lib.analysis.BlazeVersionInfo.logVersionInfo] Bazel version info: Build label: 8.5.0
-Build target: @@//src/main/java/com/google/devtools/build/lib/bazel:BazelServer
-Build time: Thu Dec 11 18:04:36 2025 (1765476276)
-Build timestamp: 1765476276
-Build timestamp as int: 1765476276
-260107 06:21:20.637:I 3 [com.google.devtools.build.lib.runtime.BlazeRuntime.main] Starting Bazel server with pid 145596 and , args [--max_idle_secs=10800, --noshutdown_on_low_sys_mem, --connect_timeout_secs=30, --output_user_root=/home/santiego/.cache/bazel/_bazel_santiego, --install_base=/home/santiego/.cache/bazel/_bazel_santiego/install/6cdc996ece0b0131935fd3ccb4802557, --install_md5=6cdc996ece0b0131935fd3ccb4802557, --lock_install_base, --output_base=/home/santiego/proj/buildtools/bazel-chisel-verilator-openroad-demo/.bazel_output_base, --workspace_directory=/home/santiego/proj/buildtools/bazel-chisel-verilator-openroad-demo, --default_system_javabase=/usr/lib/jvm/java-21-openjdk-amd64, --failure_detail_out=/home/santiego/proj/buildtools/bazel-chisel-verilator-openroad-demo/.bazel_output_base/failure_detail.rawproto, --idle_server_tasks, --write_command_log, --nowatchfs, --nofatal_event_bus_exceptions, --nowindows_enable_symlinks, --client_debug=false, --product_name=Bazel, --option_sources=output_Ubase:]

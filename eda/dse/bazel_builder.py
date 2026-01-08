@@ -18,6 +18,9 @@ from .dse_config import (
     DSEConfig,
 )
 
+# Performance tracing
+TRACE_ON = False
+
 
 def _create_failure_result(error_type: str) -> Dict[str, Any]:
     """Create standardized failure result dictionary.
@@ -143,17 +146,25 @@ def build_designs(
     # This prevents the severe performance degradation observed when multiple
     # OpenROAD instances compete for CPU resources
     import os as os_module
+
     total_cpus = os_module.cpu_count() or 1
     threads_per_instance = max(1, total_cpus // n_designs)
-    env["OPENROAD_THREADS"] = str(threads_per_instance)
 
-    print(f"Setting OPENROAD_THREADS={threads_per_instance} ({n_designs} parallel builds on {total_cpus} CPUs)")
+    # IMPORTANT: ORFS openroad.bzl uses ctx.var.get() which reads --define variables
+    # Use standard ORFS variable name NUM_CORES
+    num_cores_define = f"--define=NUM_CORES={threads_per_instance}"
+
+    print(
+        f"Setting NUM_CORES={threads_per_instance} ({n_designs} parallel builds on {total_cpus} CPUs)"
+    )
+    print(f"Propagating OpenROAD thread cap via {num_cores_define}")
 
     # Construct Bazel command (unified for single and parallel builds)
     # Use --jobs=auto to maximize CPU utilization across all variants
-    cmd = ["bazel", "build", "--keep_going", "--jobs=auto"]
+    cmd = ["bazel", "build", "--keep_going", "--jobs=auto", num_cores_define]
 
-    cmd.append(f"--profile=trace-{batch_id}.json.gz")
+    if TRACE_ON:
+        cmd.append(f"--profile=trace-{batch_id}.json.gz")
 
     # Determine package for parallel targets
     package = config.parallel_target_package

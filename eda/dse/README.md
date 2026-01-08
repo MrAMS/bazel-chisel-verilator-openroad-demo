@@ -268,6 +268,72 @@ def calc_constraint_violation(ppa_metrics) -> float:
 
 这为 Optuna 的采样器提供了梯度信息，实现更好的探索和收敛。
 
+## 命令行参数
+
+DSE运行器支持以下命令行参数：
+
+### 基本参数
+
+- `--n-trials N`: 运行的试验总数（默认：100）
+- `--seed SEED`: 随机种子，用于可重复性（默认：42）
+- `--output-dir DIR`: 结果输出目录（默认：`eda/dse/<DesignName>/results`）
+
+### 并行化参数
+
+- `--parallel-trials N`: 并行运行的试验数（默认：1，串行）
+
+**重要**: 此参数控制同时运行的OpenROAD实例数量。框架会自动计算每个实例的线程配额：
+
+```
+threads_per_instance = max(1, total_cpus // parallel_trials)
+```
+
+**性能建议**（基于16核机器的实验结果）：
+
+| parallel-trials | 线程/实例 | 效率 | 加速比 | 推荐场景 |
+|----------------|----------|------|--------|----------|
+| 1 (串行)        | 16       | 100% | 1.00x  | 单次测试 |
+| 2              | 8        | 103% | 2.05x  | **16核机器推荐** ✅ |
+| 4              | 4        | 42%  | 1.66x  | 32+核机器 |
+
+**示例**：
+
+```bash
+# 串行模式（默认）
+bazel run //eda/dse/SimdDotProduct:run_simd_dse -- --n-trials 100
+
+# 并行模式（16核机器推荐）
+bazel run //eda/dse/SimdDotProduct:run_simd_dse -- \
+    --n-trials 100 \
+    --parallel-trials 2 \
+    --seed 42
+
+# 高并行度（32+核机器）
+bazel run //eda/dse/SimdDotProduct:run_simd_dse -- \
+    --n-trials 100 \
+    --parallel-trials 4
+```
+
+**注意事项**：
+- parallel-2在16核机器上达到超线性加速（103%效率）
+- parallel-4效率较低（42%），但在更多核心的机器上表现更好
+- 每个实例的线程数会自动调整以避免资源竞争（详见代码`bazel_builder.py`）
+
+### 存储参数
+
+- `--storage URL`: Optuna存储URL（默认：内存）
+- `--study-name NAME`: 研究名称（用于持久化存储）
+
+**示例**：
+
+```bash
+# 使用SQLite持久化存储
+bazel run //eda/dse/SimdDotProduct:run_simd_dse -- \
+    --n-trials 100 \
+    --storage "sqlite:///results/simd_dse.db" \
+    --study-name "simd_v1"
+```
+
 ## 示例：SimdDotProduct
 
 参见 `eda/dse/SimdDotProduct/` 获取完整示例，展示了：
