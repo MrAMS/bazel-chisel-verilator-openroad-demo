@@ -130,6 +130,35 @@ jobs:
       - name: EDA Flow
         run: bazel build //eda/counter:counter_results
 
+  dse:
+    name: Design Space Exploration
+    needs: generate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          docker-images: true
+          swap-storage: false
+          large-packages: false # speedup
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bazel
+        uses: bazel-contrib/setup-bazel@0.15.0
+        with:
+          bazelisk-cache: true
+          disk-cache: ${{ github.workflow }}-eda
+          repository-cache: true
+
+      - name: Run DSE
+        run: bazel run //eda/dse/SimdDotProduct:run_simd_dse -- --n-trials 4 --parallel-trials 2
+
   BSP:
     name: Check Bazel BSP
     runs-on: ubuntu-22.04
