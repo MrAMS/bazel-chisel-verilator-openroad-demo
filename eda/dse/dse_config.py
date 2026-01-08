@@ -5,9 +5,8 @@ DSE Configuration data structures
 Defines the configuration interface for design-specific DSE parameters.
 """
 
-from typing import Callable, Dict, Any, List
 from dataclasses import dataclass
-
+from typing import Any, Callable, Dict, List
 
 # ============================================================================
 # Global Constants for Constraint Violations and Default Values
@@ -22,9 +21,9 @@ SEVERE_VIOLATION = 1e9
 FAILED_BUILD_PENALTY = 1e6
 
 # Default worst-case values for failed/invalid designs
-WORST_AREA = 1e9          # Maximum area value (um^2)
-WORST_PERFORMANCE = 0.0   # Minimum performance value
-WORST_SLACK = -1e9        # Minimum slack value (ps) - severe timing violation
+WORST_AREA = 1e9  # Maximum area value (um^2)
+WORST_PERFORMANCE = 0.0  # Minimum performance value
+WORST_SLACK = -1e9  # Minimum slack value (ps) - severe timing violation
 
 
 @dataclass
@@ -42,16 +41,6 @@ class DSEConfig:
 
     design_name: str
     """Name of the design (e.g., 'SimdDotProduct')"""
-
-    target: str
-    """Bazel target for building and extracting PPA metrics.
-
-    This should be a target that produces PPA metrics (typically *_ppa target)
-    for single-design builds. Bazel will automatically build all dependencies
-    (e.g., synthesis, CTS stages).
-
-    Example: '//eda/SimdDotProduct:SimdDotProduct_ppa'
-    """
 
     # ========================================================================
     # Parameter Space Definition
@@ -174,7 +163,7 @@ class DSEConfig:
     # Optional: Parallel Build Support
     # ========================================================================
 
-    get_parallel_bazel_opts: Callable[[Dict[str, Any], int, str], List[str]] | None = None
+    get_parallel_bazel_opts: Callable[[Dict[str, Any], int, int], List[str]]
     """Optional function that converts trial params to parallel Bazel build options.
 
     This function is used for parallel builds where each variant needs its own
@@ -183,19 +172,19 @@ class DSEConfig:
     Args:
         params: Trial parameters
         variant_index: Index of the variant (0, 1, 2, ...)
-        package: Bazel package name (e.g., "//eda/SimdDotProduct")
+        batch_id: Batch identifier for cache invalidation (default: 0)
 
     Returns:
         List of Bazel command-line options for this specific variant
         Example: ["--//eda/SimdDotProduct:chisel_opts_0=...", "--//eda/SimdDotProduct:abc_clock_ps_0=..."]
     """
 
-    parallel_target_package: str | None = None
-    """Optional package location for parallel build targets.
+    parallel_target_package: str
+    """package location for parallel build targets.
 
-    If specified, parallel builds will use targets from this package instead of
+    Parallel builds will use targets from this package instead of
     extracting the package from the base target. This allows separating DSE
     infrastructure (parallel variants) from the base design.
 
-    Example: '//eda/dse/SimdDotProduct' (while target is '//eda/SimdDotProduct:SimdDotProduct_ppa')
+    Example: '//eda/dse/SimdDotProduct'
     """

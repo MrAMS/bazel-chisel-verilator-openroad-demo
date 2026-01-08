@@ -169,13 +169,7 @@ def build_designs(
     # Determine package for parallel targets
     package = config.parallel_target_package
 
-    # Extract name_base from target or design_name
-    target_base = config.target.rsplit(":", 1)
-    if len(target_base) == 2:
-        _, name = target_base
-        name_base = name.replace("_ppa", "")
-    else:
-        name_base = config.design_name
+    name_base = config.design_name
 
     # Check if design provides parallel build options
     if config.get_parallel_bazel_opts is None:
@@ -188,7 +182,7 @@ def build_designs(
     for i, params in enumerate(params_list):
         # Get per-variant options from design-specific function
         # Pass batch_id for cache invalidation via string_flag
-        variant_opts = config.get_parallel_bazel_opts(params, i, package, batch_id)
+        variant_opts = config.get_parallel_bazel_opts(params, i, batch_id)
         cmd.extend(variant_opts)
 
     # Add all variant targets at the end

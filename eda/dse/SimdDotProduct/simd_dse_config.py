@@ -123,7 +123,6 @@ def get_bazel_opts(params: dict[str, str | int | float | bool]) -> list[str]:
 def get_parallel_bazel_opts(
     params: dict[str, str | int | float | bool],
     variant_index: int,
-    package: str,
     batch_id: int = 0,
 ) -> list[str]:
     """Generate Bazel build options for parallel builds.
@@ -137,7 +136,6 @@ def get_parallel_bazel_opts(
     Args:
         params: Trial parameters
         variant_index: Index of the variant (0, 1, 2, ...)
-        package: Bazel package name (ignored - always uses //eda/dse/SimdDotProduct)
         batch_id: Batch identifier for cache invalidation (default: 0)
 
     Returns:

@@ -26,7 +26,6 @@ def create_simd_dse_config() -> DSEConfig:
     return DSEConfig(
         # Design identification
         design_name="SimdDotProduct",
-        target="//eda/SimdDotProduct:SimdDotProduct_ppa",
         parallel_target_package="//eda/dse/SimdDotProduct",
         # Parameter space
         suggest_params=simd_dse_config.suggest_params,

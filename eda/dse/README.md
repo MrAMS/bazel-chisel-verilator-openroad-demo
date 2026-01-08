@@ -27,7 +27,6 @@ eda/dse/
 class DSEConfig:
     # 设计标识
     design_name: str
-    target: str  # 单个设计构建的目标（如 //eda/MyDesign:MyDesign_ppa）
 
     # 参数空间
     suggest_params: Callable
@@ -45,9 +44,9 @@ class DSEConfig:
     area_label: str
     param_labels: Dict[str, str]
 
-    # 可选：并行构建支持
-    get_parallel_bazel_opts: Callable | None = None
-    parallel_target_package: str | None = None  # DSE 基础设施的包位置
+    # 并行构建target
+    get_parallel_bazel_opts: Callable
+    parallel_target_package: str
 ```
 
 ### 2. 统一的批处理架构
@@ -91,6 +90,8 @@ eda/dse/MyDesign/BUILD     # DSE 基础设施（并行变体，Python 目标）
 
 ## 使用方法
 
+可参见本项目的示例DSE工程`eda/dse/SimdDotProduct`
+
 ### 创建新设计的 DSE
 
 #### 步骤 1: 创建 DSE 目录
@@ -128,7 +129,7 @@ py_binary(
     ],
 )
 
-# 并行 DSE 构建基础设施
+# 最大并行数量
 N_PARALLEL = 8
 
 # 为每个变体创建 string_flag
@@ -281,7 +282,9 @@ DSE运行器支持以下命令行参数：
 threads_per_instance = max(1, total_cpus // parallel_trials)
 ```
 
-**性能建议**（基于16核机器的实验结果）：
+**性能建议**
+
+基于16核机器(AMD Ryzen 9 5900HX, 16GB RAM)的实验结果：
 
 | parallel-trials | 线程/实例 | 效率 | 加速比 | 推荐场景 |
 |----------------|----------|------|--------|----------|
