@@ -19,7 +19,7 @@ This repository follows a Layered Branch Strategy. If you want to use the underl
 ```bash
 # Setup new project based on template
 git init
-git remote add template https://github.com/your-name/your-repo.git
+git remote add template https://github.com/MrAMS/bazel-chisel-verilator-openroad-demo.git
 git fetch template
 git merge template/template-core --allow-unrelated-histories
 
