@@ -1,0 +1,30 @@
+# Enable repository cache to speed up external dependency downloads
+build --repository_cache=~/.cache/bazel/repository_cache
+
+# Fix Bazel 7.x issue: prevent cache invalidation when switching between CLI and BSP
+# See: https://github.com/scalameta/metals/issues/6713
+build --incompatible_strict_action_env=true
+
+# Stabilize PATH to avoid unnecessary rebuilds
+# See: https://github.com/tensorflow/tensorboard/issues/3213
+build --action_env=PATH=/usr/local/bin:/usr/bin:/bin
+
+# Performance: enable disk cache for all commands
+build --disk_cache=~/.cache/bazel-disk-cache
+query --disk_cache=~/.cache/bazel-disk-cache
+cquery --disk_cache=~/.cache/bazel-disk-cache
+sync --disk_cache=~/.cache/bazel-disk-cache
+
+# Optimize for incremental builds
+build --remote_cache_compression
+build --experimental_reuse_sandbox_directories
+
+# For 3rd party code: Disable warnings entirely.
+# They are not actionable and just create noise.
+build --per_file_copt=external/.*@-w
+build --host_per_file_copt=external/.*@-w
+
+
+
+# alias
+build:debug --//rules:wave_tracing=true

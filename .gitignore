@@ -1,0 +1,31 @@
+# Scala
+.metals/
+.bloop/
+.bsp/
+.bazelbsp/
+external/
+
+# C/C++
+compile_commands.json
+.cache/
+
+# Python
+.venv/
+__pycache__/
+
+# bazel build
+bazel-*
+
+# IDE
+.zed/
+.vscode/
+.idea/
+
+# Gtkwave
+gtkwave.sav
+*.vcd
+
+# AI
+.claude/
+
+# note: MODULE.bazel.lock and maven_install.json should not be ignored

@@ -1,0 +1,10 @@
+{
+  "exclude": [
+    "bazel-*/**/*",
+    "**/__pycache__",
+    "**/node_modules",
+    "**/__pycache__",
+    "optuna/trial_runs/**/*",
+  ],
+  "typeCheckingMode": "standard",
+}

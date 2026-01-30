@@ -1,0 +1,23 @@
+directories:
+    hdl/chisel
+
+targets:
+    //hdl/chisel/...
+
+build_flags:
+    --build_tag_filters=-manual
+    --disk_cache=~/.cache/bazel-disk-cache
+    --jobs=auto
+    --remote_cache_compression
+
+sync_flags:
+    --disk_cache=~/.cache/bazel-disk-cache
+
+allow_manual_targets_sync: false
+
+derive_targets_from_directories: false
+
+enabled_rules:
+    rules_scala
+    rules_java
+    rules_jvm
