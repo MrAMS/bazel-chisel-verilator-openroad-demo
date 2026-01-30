@@ -10,4 +10,20 @@ The project’s validity is confirmed by its successful execution on GitHub Acti
 - Docker, OpenJDK, and [coursier](https://get-coursier.io/docs/cli-installation).
 - PyYAML and GNU Time
 
-If you encounter errors regarding a missing firtool binary, try running the build command with `--spawn_strategy=local` for the first time to enable the automatic download.
+If you encounter errors regarding a missing firtool binary for the first-time build, try running the build command with `--spawn_strategy=local` to enable the automatic deps download.
+
+## Usage
+
+This repository follows a Layered Branch Strategy. If you want to use the underlying infrastructure (build scripts, configs) without the example code (e.g. `cpp`, `eda`, `hdl/chisel/src/checker`), we recommend basing your project on the `template-core` branch.
+
+```bash
+# Setup new project based on template
+git init
+git remote add template https://github.com/your-name/your-repo.git
+git fetch template
+git merge template/template-core --allow-unrelated-histories
+
+# Keeping template up-to-date
+git fetch template
+git merge template/template-core
+```
