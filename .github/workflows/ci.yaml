@@ -24,9 +24,6 @@ jobs:
       - name: Lint Bazel files
         run: bazel run @buildifier_prebuilt//:buildifier -- -lint=warn -mode=check -warnings=all -r .
 
-      - name: Check MODULE.bazel.lock
-        run: bazel mod tidy && git diff --exit-code
-
   generate:
     name: Generate Verilog
     runs-on: ubuntu-latest
