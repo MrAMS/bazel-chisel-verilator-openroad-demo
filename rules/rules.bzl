@@ -1,5 +1,5 @@
-load("@bazel-orfs//:verilog.bzl", "verilog_single_file_library")
-load("@bazel-orfs//toolchains/scala:chisel.bzl", "chisel_binary", "chisel_library")
+load("@rules_chisel//verilog:defs.bzl", "verilog_single_file_library")
+load("@rules_chisel//chisel:defs.bzl", "chisel_binary", "chisel_library")
 load("//rules:generate.bzl", "chisel_verilog_directory")
 
 

@@ -16,6 +16,7 @@ bazel_dep(name = "verilator", version = "5.036.bcr.3")
 bazel_dep(name = "googletest", version = "1.17.0")
 bazel_dep(name = "rules_scala", version = "7.1.5")
 bazel_dep(name = "bazel_skylib", version = "1.9.0")
+bazel_dep(name = "rules_chisel", version = "0.1.0")
 
 # Configure Scala version to match bazel-orfs
 scala_config = use_extension("@rules_scala//scala/extensions:config.bzl", "scala_config")
@@ -24,12 +25,28 @@ use_repo(scala_config, "rules_scala_config")
 
 scala_deps = use_extension("@rules_scala//scala/extensions:deps.bzl", "scala_deps")
 scala_deps.scala()
-scala_deps.scalatest()
+scala_deps.scalatest()  # needed by chisel_test (scala_test toolchain)
 use_repo(
     scala_deps,
     "io_bazel_rules_scala_scala_compiler",
     "io_bazel_rules_scala_scala_library",
     "io_bazel_rules_scala_scala_reflect",
+    "io_bazel_rules_scala_scalactic",
+    "io_bazel_rules_scala_scalatest",
+    "io_bazel_rules_scala_scalatest_compatible",
+    "io_bazel_rules_scala_scalatest_core",
+    "io_bazel_rules_scala_scalatest_diagrams",
+    "io_bazel_rules_scala_scalatest_featurespec",
+    "io_bazel_rules_scala_scalatest_flatspec",
+    "io_bazel_rules_scala_scalatest_freespec",
+    "io_bazel_rules_scala_scalatest_funspec",
+    "io_bazel_rules_scala_scalatest_funsuite",
+    "io_bazel_rules_scala_scalatest_matchers_core",
+    "io_bazel_rules_scala_scalatest_mustmatchers",
+    "io_bazel_rules_scala_scalatest_propspec",
+    "io_bazel_rules_scala_scalatest_refspec",
+    "io_bazel_rules_scala_scalatest_shouldmatchers",
+    "io_bazel_rules_scala_scalatest_wordspec",
     "rules_scala_toolchains",
 )
 
@@ -87,50 +104,14 @@ orfs.default(
 use_repo(orfs, "com_github_nixos_patchelf_download")
 use_repo(orfs, "docker_orfs")
 
-SCALA_VERSION = "2.13.17"
-
-SCALA_VERSION_SHORT = SCALA_VERSION.rpartition(".")[0]
-
-CHISEL_VERSION = "7.2.0"
-
-MAVEN_DEPS = {
-    "org.apache.commons:commons-text": "1.12.0",
-    "org.scala-lang:scala-compiler": SCALA_VERSION,
-    "org.scala-lang:scala-library": SCALA_VERSION,
-    "org.scala-lang:scala-reflect": SCALA_VERSION,
-}
-
-MAVEN_SHORT_DEPS = {
-    "com.github.scopt:scopt": "4.1.0",
-    "com.lihaoyi:os-lib": "0.10.0",
-    "com.lihaoyi:ujson": "4.1.0",
-    "com.lihaoyi:upickle": "4.1.0",
-    "org.chipsalliance:chisel": CHISEL_VERSION,
-    "org.chipsalliance:firtool-resolver": "2.0.1",
-    "org.json4s:json4s-native": "4.0.7",
-    "org.scalatest:scalatest": "3.2.19",
-}
-
-MAVEN_LONG_DEPS = {
-    "org.chipsalliance:chisel-plugin": CHISEL_VERSION,
-    "org.scalameta:semanticdb-scalac": "4.14.1",
-}
-
-maven = use_extension("@rules_jvm_external//:extensions.bzl", "maven")
-maven.install(
-    name = "maven",
-    artifacts = ["{}_{}:{}".format(dep, SCALA_VERSION_SHORT, version) for (dep, version) in MAVEN_SHORT_DEPS.items()] +
-                ["{}_{}:{}".format(dep, SCALA_VERSION, version) for (dep, version) in MAVEN_LONG_DEPS.items()] +
-                ["{}:{}".format(dep, version) for (dep, version) in MAVEN_DEPS.items()],
-    fetch_sources = True,
-    lock_file = "//:maven_install.json",  # REPIN=1 bazel run @maven//:pin
-    repositories = [
-        "https://repo1.maven.org/maven2",  # fastest mirror, last I tried
-        "https://s01.oss.sonatype.org/content/repositories/releases",
-        "https://s01.oss.sonatype.org/content/repositories/snapshots",
-    ],
+# Chisel dependencies (creates @chisel_maven)
+chisel = use_extension("@rules_chisel//chisel:extensions.bzl", "chisel")
+chisel.toolchain(
+    chisel_version = "7.2.0",
+    firtool_resolver_version = "2.0.1",  # choose a known compatible resolver for your Chisel release
+    scala_version = "2.13.17",  # should match rules_scala's scala_version
 )
-use_repo(maven, "maven")
+use_repo(chisel, "chisel_maven")
 
 # Hedron's Compile Commands Extractor for Bazel
 bazel_dep(name = "hedron_compile_commands", dev_dependency = True)
